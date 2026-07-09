@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1020537179555",
+    "project_id": "hexa-b1825",
+    "storage_bucket": "hexa-b1825.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1020537179555:android:4688f0ec1edf149f869e16",
+        "android_client_info": {
+          "package_name": "com.example.hexa_prod"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1020537179555-rftij7kh0r6jstnsjsp0nrkjcjvh6lq9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.hexa_prod",
+            "certificate_hash": "685b32499bc3b978d8b4a5533786a36563fc65a4"
+          }
+        },
+        {
+          "client_id": "1020537179555-djroq75r9hdbhlkvlgn39hvg903rtlph.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgPiVWB6qq-2V89-gGhh44GIw8ZLwRgZg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1020537179555-djroq75r9hdbhlkvlgn39hvg903rtlph.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
