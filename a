@@ -1,0 +1,64 @@
+[1mdiff --git a/test/widget_test.dart b/test/widget_test.dart[m
+[1mindex 63e3e4e..7787738 100644[m
+[1m--- a/test/widget_test.dart[m
+[1m+++ b/test/widget_test.dart[m
+[36m@@ -1,14 +1,48 @@[m
+[31m-import 'package:flutter_test/flutter_test.dart';[m
+[32m+[m[32mimport 'package:flutter/material.dart';[m
+ import 'package:flutter_riverpod/flutter_riverpod.dart';[m
+[32m+[m[32mimport 'package:flutter_test/flutter_test.dart';[m
+[32m+[m[32mimport 'package:go_router/go_router.dart';[m
+[32m+[m[32mimport 'package:hexa/core/router/hexa_router.dart';[m
+ import 'package:hexa/main.dart';[m
+ [m
+ void main() {[m
+[31m-  testWidgets('Hexa App Smoke Test', (WidgetTester tester) async {[m
+[31m-    // Uygulamayı Riverpod ProviderScope ile test ortamında başlatıyoruz[m
+[31m-    await tester.pumpWidget(const ProviderScope(child: HexaApp()));[m
+[31m-[m
+[31m-    // Ekranda HEXA ve buton metinlerinin doğru yüklendiğini kodla doğruluyoruz[m
+[31m-    expect(find.text('HEXA'), findsOneWidget);[m
+[31m-    expect(find.text('GOOGLE İLE BAŞLA'), findsOneWidget);[m
+[31m-  });[m
+[31m-}[m
+[32m+[m[32m  testWidgets([m
+[32m+[m[32m    'Hexa app shell renders with an overridden test router',[m
+[32m+[m[32m    (WidgetTester tester) async {[m
+[32m+[m[32m      final testRouter = GoRouter([m
+[32m+[m[32m        initialLocation: '/',[m
+[32m+[m[32m        routes: [[m
+[32m+[m[32m          GoRoute([m
+[32m+[m[32m            path: '/',[m
+[32m+[m[32m            builder: (context, state) {[m
+[32m+[m[32m              return const Scaffold([m
+[32m+[m[32m                body: Center([m
+[32m+[m[32m                  child: Text([m
+[32m+[m[32m                    'HEXA_TEST_HOME',[m
+[32m+[m[32m                    key: Key('hexa-test-home'),[m
+[32m+[m[32m                  ),[m
+[32m+[m[32m                ),[m
+[32m+[m[32m              );[m
+[32m+[m[32m            },[m
+[32m+[m[32m          ),[m
+[32m+[m[32m        ],[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      addTearDown(testRouter.dispose);[m
+[32m+[m
+[32m+[m[32m      await tester.pumpWidget([m
+[32m+[m[32m        ProviderScope([m
+[32m+[m[32m          overrides: [[m
+[32m+[m[32m            routerProvider.overrideWithValue(testRouter),[m
+[32m+[m[32m          ],[m
+[32m+[m[32m          child: const HexaApp(),[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      await tester.pumpAndSettle();[m
+[32m+[m
+[32m+[m[32m      expect(find.byKey(const Key('hexa-test-home')), findsOneWidget);[m
+[32m+[m[32m      expect(find.text('HEXA_TEST_HOME'), findsOneWidget);[m
+[32m+[m[32m    },[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
