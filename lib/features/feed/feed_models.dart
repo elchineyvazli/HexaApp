@@ -17,17 +17,90 @@ enum SignalReason {
 
   final String value;
 
+  static const List<SignalReason> primaryReasons = <SignalReason>[
+    helpful,
+    learnedSomething,
+    inspired,
+    thoughtProvoking,
+    encouraging,
+  ];
+
   static SignalReason? fromValue(Object? value) {
-    final normalizedValue = value?.toString().trim();
+    final normalizedValue = value?.toString().trim().toLowerCase();
 
     for (final reason in SignalReason.values) {
       if (reason.value == normalizedValue ||
-          reason.name == normalizedValue) {
+          reason.name.toLowerCase() == normalizedValue) {
         return reason;
       }
     }
 
     return null;
+  }
+}
+
+extension SignalReasonPresentation on SignalReason {
+  String get label {
+    switch (this) {
+      case SignalReason.helpful:
+        return 'Faydalı';
+      case SignalReason.learnedSomething:
+        return 'Öğretici';
+      case SignalReason.inspired:
+        return 'İlham verdi';
+      case SignalReason.thoughtProvoking:
+        return 'Düşündürdü';
+      case SignalReason.encouraging:
+        return 'Cesaret verdi';
+      case SignalReason.entertaining:
+        return 'Keyif verdi';
+      case SignalReason.artistic:
+        return 'Yaratıcı';
+      case SignalReason.other:
+        return 'Değer kattı';
+    }
+  }
+
+  String get emoji {
+    switch (this) {
+      case SignalReason.helpful:
+        return '🤝';
+      case SignalReason.learnedSomething:
+        return '💡';
+      case SignalReason.inspired:
+        return '✨';
+      case SignalReason.thoughtProvoking:
+        return '🧠';
+      case SignalReason.encouraging:
+        return '🔥';
+      case SignalReason.entertaining:
+        return '😊';
+      case SignalReason.artistic:
+        return '🎨';
+      case SignalReason.other:
+        return '❤️';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case SignalReason.helpful:
+        return 'Günlük hayatıma veya bir sorunuma katkı sağladı.';
+      case SignalReason.learnedSomething:
+        return 'Bana yeni ve uygulanabilir bir şey öğretti.';
+      case SignalReason.inspired:
+        return 'Yeni bir fikir ya da hareket enerjisi verdi.';
+      case SignalReason.thoughtProvoking:
+        return 'Bir konuya farklı açıdan bakmamı sağladı.';
+      case SignalReason.encouraging:
+        return 'Denemek ve devam etmek için cesaret verdi.';
+      case SignalReason.entertaining:
+        return 'Kaliteli ve iyi hissettiren bir deneyimdi.';
+      case SignalReason.artistic:
+        return 'Yaratıcılığı ve anlatımıyla değer kattı.';
+      case SignalReason.other:
+        return 'Bende anlamlı bir etki bıraktı.';
+    }
   }
 }
 
@@ -52,11 +125,11 @@ enum VideoProcessingStatus {
     Object? value, {
     VideoProcessingStatus fallback = VideoProcessingStatus.ready,
   }) {
-    final normalizedValue = value?.toString().trim();
+    final normalizedValue = value?.toString().trim().toLowerCase();
 
     for (final status in VideoProcessingStatus.values) {
       if (status.value == normalizedValue ||
-          status.name == normalizedValue) {
+          status.name.toLowerCase() == normalizedValue) {
         return status;
       }
     }
@@ -79,11 +152,11 @@ enum VideoVisibility {
     Object? value, {
     VideoVisibility fallback = VideoVisibility.publicFeed,
   }) {
-    final normalizedValue = value?.toString().trim();
+    final normalizedValue = value?.toString().trim().toLowerCase();
 
     for (final visibility in VideoVisibility.values) {
       if (visibility.value == normalizedValue ||
-          visibility.name == normalizedValue) {
+          visibility.name.toLowerCase() == normalizedValue) {
         return visibility;
       }
     }
@@ -107,11 +180,11 @@ enum ArtifactRarity {
     Object? value, {
     ArtifactRarity fallback = ArtifactRarity.common,
   }) {
-    final normalizedValue = value?.toString().trim();
+    final normalizedValue = value?.toString().trim().toLowerCase();
 
     for (final rarity in ArtifactRarity.values) {
       if (rarity.value == normalizedValue ||
-          rarity.name == normalizedValue) {
+          rarity.name.toLowerCase() == normalizedValue) {
         return rarity;
       }
     }
@@ -145,6 +218,8 @@ class VideoModel {
   final String username;
   final String caption;
   final String uploaderId;
+  final String uploaderDisplayName;
+  final String uploaderAvatarUrl;
 
   /// Beğeni yerine kullanılan gerçek Hexa etkileşim sayacı.
   final int signalCount;
@@ -180,6 +255,12 @@ class VideoModel {
   final int width;
   final int height;
 
+  /// Bazı eski veya üçüncü taraf yüklemelerde yalnızca oran saklanabilir.
+  ///
+  /// [width] ve [height] geçerliyse onlar önceliklidir. Bu alan, metadata
+  /// yükleme paketi tamamlanana kadar geriye dönük uyumluluk sağlar.
+  final double storedAspectRatio;
+
   final VideoProcessingStatus processingStatus;
   final VideoVisibility visibility;
 
@@ -192,6 +273,8 @@ class VideoModel {
     required this.username,
     required this.caption,
     required this.uploaderId,
+    this.uploaderDisplayName = '',
+    this.uploaderAvatarUrl = '',
     this.hlsUrl = '',
     this.thumbnailUrl = '',
     this.renditionUrls = const <String, String>{},
@@ -210,6 +293,7 @@ class VideoModel {
     this.durationMs = 0,
     this.width = 0,
     this.height = 0,
+    this.storedAspectRatio = 0,
     this.processingStatus = VideoProcessingStatus.ready,
     this.visibility = VideoVisibility.publicFeed,
     this.createdAt,
@@ -228,11 +312,35 @@ class VideoModel {
        assert(durationMs >= 0),
        assert(width >= 0),
        assert(height >= 0),
+       assert(storedAspectRatio >= 0),
        signalCount = signalCount ?? likes ?? 0;
 
   /// Diğer dosyalar değiştirilene kadar eski kullanımları bozmaz.
   @Deprecated('likes yerine signalCount kullanın.')
   int get likes => signalCount;
+
+  String get creatorName {
+    final value = uploaderDisplayName.trim();
+    return value.isNotEmpty ? value : username;
+  }
+
+  bool get hasUploaderProfile {
+    final value = uploaderId.trim();
+    return value.isNotEmpty &&
+        value != 'unknown_user' &&
+        value != 'system_admin';
+  }
+
+  bool get isPubliclyVisible =>
+      visibility == VideoVisibility.publicFeed &&
+      processingStatus != VideoProcessingStatus.rejected &&
+      processingStatus != VideoProcessingStatus.archived;
+
+  String get searchableText => <String>[
+        caption,
+        username,
+        uploaderDisplayName,
+      ].join(' ').toLowerCase();
 
   /// Oynatıcı için kullanılabilecek en uygun bağlantı.
   String get playbackUrl {
@@ -262,13 +370,27 @@ class VideoModel {
       processingStatus == VideoProcessingStatus.ready &&
       playbackUrl.trim().isNotEmpty;
 
+  /// Güvenli ve ekranda kullanılabilir video oranı.
+  ///
+  /// Aşırı veya bozuk metadata değerleri görsel taşmaları önlemek için
+  /// geçersiz kabul edilir. Oynatıcı hazır olduktan sonra gerçek medya oranı
+  /// yine çalışma zamanındaki video metadata'sından öncelikli alınacaktır.
   double? get aspectRatio {
-    if (width <= 0 || height <= 0) {
-      return null;
+    if (width > 0 && height > 0) {
+      final dimensionRatio = width / height;
+      if (_isUsableAspectRatio(dimensionRatio)) {
+        return dimensionRatio;
+      }
     }
 
-    return width / height;
+    if (_isUsableAspectRatio(storedAspectRatio)) {
+      return storedAspectRatio;
+    }
+
+    return null;
   }
+
+  bool get hasDimensions => width > 0 && height > 0;
 
   factory VideoModel.fromMap(
     Map<String, dynamic> map,
@@ -346,6 +468,21 @@ class VideoModel {
         ],
       ),
       uploaderId: uploaderId,
+      uploaderDisplayName: _firstNonEmpty(
+        <Object?>[
+          map['uploaderDisplayName'],
+          map['displayName'],
+          rawUsername,
+        ],
+      ),
+      uploaderAvatarUrl: _firstNonEmpty(
+        <Object?>[
+          map['uploaderAvatarUrl'],
+          map['profileImageUrl'],
+          map['photoUrl'],
+          map['avatarUrl'],
+        ],
+      ),
       signalCount: signalCount,
       uniqueSignalersCount: _firstAvailableInt(
         <Object?>[
@@ -396,13 +533,25 @@ class VideoModel {
       width: _firstAvailableInt(
         <Object?>[
           map['width'],
+          map['videoWidth'],
           playbackMap['width'],
+          playbackMap['videoWidth'],
         ],
       ),
       height: _firstAvailableInt(
         <Object?>[
           map['height'],
+          map['videoHeight'],
           playbackMap['height'],
+          playbackMap['videoHeight'],
+        ],
+      ),
+      storedAspectRatio: _firstAvailableDouble(
+        <Object?>[
+          map['aspectRatio'],
+          map['videoAspectRatio'],
+          playbackMap['aspectRatio'],
+          playbackMap['videoAspectRatio'],
         ],
       ),
       processingStatus: VideoProcessingStatus.fromValue(
@@ -427,11 +576,16 @@ class VideoModel {
       'username': username,
       'description': caption,
       'uploaderId': uploaderId,
+      if (uploaderDisplayName.isNotEmpty)
+        'uploaderDisplayName': uploaderDisplayName,
+      if (uploaderAvatarUrl.isNotEmpty)
+        'uploaderAvatarUrl': uploaderAvatarUrl,
       'processingStatus': processingStatus.value,
       'visibility': visibility.value,
       'durationMs': durationMs,
       'width': width,
       'height': height,
+      if (aspectRatio != null) 'aspectRatio': aspectRatio,
       if (hlsUrl.isNotEmpty) 'hlsUrl': hlsUrl,
       if (thumbnailUrl.isNotEmpty) 'thumbnailUrl': thumbnailUrl,
       if (renditionUrls.isNotEmpty) 'renditionUrls': renditionUrls,
@@ -465,6 +619,8 @@ class VideoModel {
     String? username,
     String? caption,
     String? uploaderId,
+    String? uploaderDisplayName,
+    String? uploaderAvatarUrl,
     int? signalCount,
     int? uniqueSignalersCount,
     Map<String, int>? signalDistribution,
@@ -477,6 +633,7 @@ class VideoModel {
     int? durationMs,
     int? width,
     int? height,
+    double? storedAspectRatio,
     VideoProcessingStatus? processingStatus,
     VideoVisibility? visibility,
     DateTime? createdAt,
@@ -491,6 +648,9 @@ class VideoModel {
       username: username ?? this.username,
       caption: caption ?? this.caption,
       uploaderId: uploaderId ?? this.uploaderId,
+      uploaderDisplayName:
+          uploaderDisplayName ?? this.uploaderDisplayName,
+      uploaderAvatarUrl: uploaderAvatarUrl ?? this.uploaderAvatarUrl,
       signalCount: signalCount ?? this.signalCount,
       uniqueSignalersCount:
           uniqueSignalersCount ?? this.uniqueSignalersCount,
@@ -507,6 +667,7 @@ class VideoModel {
       durationMs: durationMs ?? this.durationMs,
       width: width ?? this.width,
       height: height ?? this.height,
+      storedAspectRatio: storedAspectRatio ?? this.storedAspectRatio,
       processingStatus: processingStatus ?? this.processingStatus,
       visibility: visibility ?? this.visibility,
       createdAt: createdAt ?? this.createdAt,
@@ -727,6 +888,21 @@ String _firstNonEmpty(
   }
 
   return fallback;
+}
+
+double _firstAvailableDouble(List<Object?> values) {
+  for (final value in values) {
+    final parsed = _readDouble(value);
+    if (_isUsableAspectRatio(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+bool _isUsableAspectRatio(double value) {
+  return value.isFinite && value >= 0.2 && value <= 5;
 }
 
 int _firstAvailableInt(List<Object?> values) {

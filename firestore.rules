@@ -1,0 +1,492 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function videoPath(videoId) {
+      return /databases/$(database)/documents/videos/$(videoId);
+    }
+
+    function usernamePath(usernameKey) {
+      return /databases/$(database)/documents/usernames/$(usernameKey);
+    }
+
+    function validUsernameKey(value) {
+      return value is string
+        && value.size() >= 3
+        && value.size() <= 24
+        && value.matches('^[a-z0-9][a-z0-9._]{1,22}[a-z0-9]$');
+    }
+
+    function signalCount(data) {
+      return data.get('signalCount', data.get('likesCount', 0));
+    }
+
+    function uniqueSignalersCount(data) {
+      return data.get('uniqueSignalersCount', signalCount(data));
+    }
+
+    function commentsCount(data) {
+      return data.get('commentsCount', 0);
+    }
+
+    function sharesCount(data) {
+      return data.get('sharesCount', 0);
+    }
+
+    function validUserCreate(userId) {
+      return request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'username',
+          'usernameKey',
+          'displayName',
+          'photoUrl',
+          'profileImageUrl',
+          'bio',
+          'followersCount',
+          'followingCount',
+          'isProfileCompleted',
+          'authProvider',
+          'schemaVersion',
+          'createdAt',
+          'updatedAt',
+          'lastSignInAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.get('email', '') is string
+        && request.resource.data.get('username', '') == ''
+        && request.resource.data.get('usernameKey', '') == ''
+        && request.resource.data.get('displayName', '') is string
+        && request.resource.data.get('displayName', '').size() <= 40
+        && request.resource.data.get('bio', '') is string
+        && request.resource.data.get('bio', '').size() <= 160
+        && request.resource.data.get('followersCount', 0) == 0
+        && request.resource.data.get('followingCount', 0) == 0
+        && request.resource.data.get('isProfileCompleted', false) == false
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.lastSignInAt == request.time;
+    }
+
+    function validUserUpdate(userId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let usernameChanged = changed.hasAny(['username', 'usernameKey']);
+      let usernameKey = request.resource.data.get('usernameKey', '');
+      let validReservation = validUsernameKey(usernameKey)
+        && request.resource.data.get('username', '') == '@' + usernameKey
+        && existsAfter(usernamePath(usernameKey))
+        && getAfter(usernamePath(usernameKey)).data.uid == userId;
+
+      return changed.hasOnly([
+          'email',
+          'username',
+          'usernameKey',
+          'displayName',
+          'bio',
+          'category',
+          'photoUrl',
+          'profileImageUrl',
+          'isProfileCompleted',
+          'authProvider',
+          'schemaVersion',
+          'updatedAt',
+          'lastSignInAt'
+        ])
+        && request.resource.data.get('uid', userId) == userId
+        && request.resource.data.get('uid', userId)
+          == resource.data.get('uid', userId)
+        && request.resource.data.get('displayName', '') is string
+        && request.resource.data.get('displayName', '').size() <= 40
+        && request.resource.data.get('bio', '') is string
+        && request.resource.data.get('bio', '').size() <= 160
+        && (!usernameChanged || validReservation);
+    }
+
+    function validVideoCreate() {
+      return request.resource.data.keys().hasOnly([
+          'schemaVersion',
+          'videoUrl',
+          'hlsUrl',
+          'thumbnailUrl',
+          'renditionUrls',
+          'description',
+          'caption',
+          'uploaderId',
+          'username',
+          'uploaderDisplayName',
+          'uploaderAvatarUrl',
+          'processingStatus',
+          'status',
+          'visibility',
+          'durationMs',
+          'width',
+          'height',
+          'signalCount',
+          'uniqueSignalersCount',
+          'signalDistribution',
+          'likesCount',
+          'viewsCount',
+          'sharesCount',
+          'commentsCount',
+          'artifactCount',
+          'uniqueArtifactSupportersCount',
+          'impactScore',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uploaderId == request.auth.uid
+        && request.resource.data.videoUrl is string
+        && request.resource.data.videoUrl.size() > 0
+        && request.resource.data.get('description', '') is string
+        && request.resource.data.get('description', '').size() <= 300
+        && request.resource.data.get('caption', '') is string
+        && request.resource.data.get('caption', '').size() <= 300
+        && request.resource.data.get('visibility', 'public')
+          in ['public', 'followers_only', 'private']
+        && signalCount(request.resource.data) == 0
+        && uniqueSignalersCount(request.resource.data) == 0
+        && commentsCount(request.resource.data) == 0
+        && request.resource.data.get('viewsCount', 0) == 0
+        && sharesCount(request.resource.data) == 0
+        && request.resource.data.get('artifactCount', 0) == 0
+        && request.resource.data.get('uniqueArtifactSupportersCount', 0) == 0
+        && request.resource.data.get('impactScore', 0) == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validOwnerVideoUpdate() {
+      return resource.data.get('uploaderId', '') == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'description',
+          'caption',
+          'thumbnailUrl',
+          'visibility',
+          'processingStatus',
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.get('description', '') is string
+        && request.resource.data.get('description', '').size() <= 300
+        && request.resource.data.get('caption', '') is string
+        && request.resource.data.get('caption', '').size() <= 300
+        && request.resource.data.get('visibility', 'public')
+          in ['public', 'followers_only', 'private']
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // MVP sırasında sayaçlar istemci transaction'larıyla güncellenir. Burada
+    // yalnızca ilgili alanlara ve tek adımlık değişime izin verilir. Bir sonraki
+    // backend paketinde bu sayaçlar Cloud Functions tarafından yönetilecektir.
+    function validSignalAggregateUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeCount = signalCount(resource.data);
+      let afterCount = signalCount(request.resource.data);
+
+      return changed.hasAny([
+          'signalCount',
+          'likesCount',
+          'uniqueSignalersCount',
+          'signalDistribution'
+        ])
+        && changed.hasOnly([
+          'signalCount',
+          'likesCount',
+          'uniqueSignalersCount',
+          'signalDistribution',
+          'updatedAt'
+        ])
+        && beforeCount is int
+        && afterCount is int
+        && afterCount >= 0
+        && afterCount >= beforeCount - 1
+        && afterCount <= beforeCount + 1
+        && request.resource.data.get('likesCount', afterCount) == afterCount
+        && request.resource.data.get('uniqueSignalersCount', afterCount)
+          == afterCount
+        && request.resource.data.get('signalDistribution', null) is map
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validCommentAggregateUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeCount = commentsCount(resource.data);
+      let afterCount = commentsCount(request.resource.data);
+
+      return changed.hasOnly(['commentsCount', 'updatedAt'])
+        && changed.hasAny(['updatedAt'])
+        && beforeCount is int
+        && afterCount is int
+        && afterCount >= 0
+        && afterCount >= beforeCount - 1
+        && afterCount <= beforeCount + 1
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validShareAggregateUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeCount = sharesCount(resource.data);
+      let afterCount = sharesCount(request.resource.data);
+
+      return changed.hasOnly(['sharesCount', 'updatedAt'])
+        && changed.hasAny(['sharesCount'])
+        && beforeCount is int
+        && afterCount is int
+        && afterCount == beforeCount + 1
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if isOwner(userId) && validUserCreate(userId);
+      allow update: if isOwner(userId) && validUserUpdate(userId);
+      allow delete: if false;
+
+      match /savedVideos/{videoId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly([
+            'videoId',
+            'userId',
+            'createdAt'
+          ])
+          && request.resource.data.videoId == videoId
+          && request.resource.data.userId == userId
+          && request.resource.data.createdAt == request.time;
+
+        allow delete: if isOwner(userId);
+        allow update: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId);
+
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly([
+            'type',
+            'senderId',
+            'senderName',
+            'senderAvatar',
+            'message',
+            'targetId',
+            'createdAt',
+            'isRead'
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.type in ['signal', 'comment']
+          && request.resource.data.targetId is string
+          && request.resource.data.senderName is string
+          && request.resource.data.senderName.size() <= 80
+          && request.resource.data.senderAvatar is string
+          && request.resource.data.senderAvatar.size() <= 2048
+          && request.resource.data.message is string
+          && request.resource.data.message.size() <= 240
+          && exists(videoPath(request.resource.data.targetId))
+          && get(videoPath(request.resource.data.targetId))
+            .data.get('uploaderId', '') == userId
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.isRead == false;
+
+        allow update: if signedIn()
+          && (
+            (
+              isOwner(userId)
+              && request.resource.data.diff(resource.data)
+                .affectedKeys().hasOnly(['isRead'])
+              && request.resource.data.isRead is bool
+            )
+            ||
+            (
+              resource.data.get('senderId', '') == request.auth.uid
+              && request.resource.data.get('senderId', '') == request.auth.uid
+              && request.resource.data.get('targetId', '')
+                == resource.data.get('targetId', '')
+              && request.resource.data.get('type', '')
+                == resource.data.get('type', '')
+              && request.resource.data.get('senderName', '') is string
+              && request.resource.data.get('senderName', '').size() <= 80
+              && request.resource.data.get('senderAvatar', '') is string
+              && request.resource.data.get('senderAvatar', '').size() <= 2048
+              && request.resource.data.get('message', '') is string
+              && request.resource.data.get('message', '').size() <= 240
+              && request.resource.data.get('isRead', false) == false
+              && request.resource.data.get('createdAt', null) == request.time
+              && request.resource.data.diff(resource.data)
+                .affectedKeys().hasOnly([
+                  'senderName',
+                  'senderAvatar',
+                  'message',
+                  'createdAt',
+                  'isRead'
+                ])
+            )
+          );
+
+        allow delete: if isOwner(userId)
+          || (signedIn()
+            && resource.data.get('senderId', '') == request.auth.uid);
+      }
+    }
+
+    match /usernames/{usernameKey} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && validUsernameKey(usernameKey)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'username',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.username == '@' + usernameKey
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if signedIn()
+        && validUsernameKey(usernameKey)
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.username == '@' + usernameKey
+        && request.resource.data.get('createdAt', null)
+          == resource.data.get('createdAt', null)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username',
+          'updatedAt'
+        ])
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /videos/{videoId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && validVideoCreate();
+      allow update: if signedIn()
+        && (
+          validOwnerVideoUpdate()
+          || validSignalAggregateUpdate()
+          || validCommentAggregateUpdate()
+          || validShareAggregateUpdate()
+        );
+      allow delete: if signedIn()
+        && resource.data.get('uploaderId', '') == request.auth.uid;
+
+      match /signals/{userId} {
+        allow read: if signedIn();
+
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly([
+            'videoId',
+            'userId',
+            'reason',
+            'qualifiedWatchMs',
+            'sessionId',
+            'createdAt',
+            'updatedAt'
+          ])
+          && request.resource.data.videoId == videoId
+          && request.resource.data.userId == userId
+          && request.resource.data.reason in [
+            'learned_something',
+            'inspired',
+            'thought_provoking',
+            'helpful',
+            'encouraging',
+            'entertaining',
+            'artistic',
+            'other'
+          ]
+          && request.resource.data.get('qualifiedWatchMs', 0) >= 0
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+
+        allow update: if isOwner(userId)
+          && request.resource.data.videoId == resource.data.videoId
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.reason in [
+            'learned_something',
+            'inspired',
+            'thought_provoking',
+            'helpful',
+            'encouraging',
+            'entertaining',
+            'artistic',
+            'other'
+          ]
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'reason',
+            'qualifiedWatchMs',
+            'sessionId',
+            'updatedAt'
+          ])
+          && request.resource.data.updatedAt == request.time;
+
+        allow delete: if isOwner(userId);
+      }
+
+      match /comments/{commentId} {
+        allow read: if signedIn();
+
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly([
+            'commentId',
+            'videoId',
+            'userId',
+            'username',
+            'userPhotoUrl',
+            'text',
+            'sticker',
+            'createdAt',
+            'updatedAt'
+          ])
+          && request.resource.data.commentId == commentId
+          && request.resource.data.videoId == videoId
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.username is string
+          && request.resource.data.username.size() <= 32
+          && request.resource.data.userPhotoUrl is string
+          && request.resource.data.userPhotoUrl.size() <= 2048
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.sticker is string
+          && request.resource.data.sticker.size() <= 16
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+
+        allow delete: if signedIn()
+          && resource.data.get('userId', '') == request.auth.uid;
+        allow update: if false;
+      }
+
+      // Eski prototip beğenileri okunur ve kullanıcı kendi kaydını silebilir.
+      // Yeni istemci artık bu koleksiyona kayıt oluşturmaz.
+      match /likes/{userId} {
+        allow read: if signedIn();
+        allow delete: if isOwner(userId);
+        allow create, update: if false;
+      }
+
+      match /artifacts/{artifactId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

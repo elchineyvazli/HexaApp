@@ -1,31 +1,86 @@
 import 'package:flutter/material.dart';
 
-/// Hexa'nın açık, yumuşak ve modern renk sistemi.
+/// Hexa'nın umut, sıcaklık ve keşif duygusunu taşıyan ana renk sistemi.
+///
+/// Palet, kullanıcının paylaştığı pembe gökyüzü ve koyu ufuk görselinden
+/// türetilmiştir. Koyu renkler okunabilirlik; açık renkler ise ferahlık için
+/// kullanılır.
 abstract final class HexaColors {
-  static const Color background = Color(0xFFFAF9F6);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF2F5F3);
-  static const Color surfaceStrong = Color(0xFFE9EEEB);
+  // Hope palette — ana marka renkleri.
+  static const Color hopePink = Color(0xFFFB9BBD);
+  static const Color blush = Color(0xFFF5A8CC);
+  static const Color mauve = Color(0xFFC575B1);
+  static const Color signal = Color(0xFFB15090);
+  static const Color plum = Color(0xFF833C69);
+  static const Color horizon = Color(0xFF601F24);
+  static const Color earth = Color(0xFF2F1713);
 
-  static const Color ink = Color(0xFF17202A);
-  static const Color inkMuted = Color(0xFF667085);
-  static const Color inkSoft = Color(0xFF98A2B3);
+  // Açık uygulama yüzeyleri.
+  static const Color background = Color(0xFFFFF7FA);
+  static const Color surface = Color(0xFFFFFCFD);
+  static const Color surfaceMuted = Color(0xFFFCEAF2);
+  static const Color surfaceStrong = Color(0xFFF5D9E7);
+  static const Color surfaceWarm = Color(0xFFFFEEF5);
 
-  /// Kalp biçimli Signal sisteminin ana rengi.
-  static const Color signal = Color(0xFFD83A56);
-  static const Color signalSoft = Color(0xFFFFE9ED);
-  static const Color signalStrong = Color(0xFFB92543);
+  // Metin ve ikonlar.
+  static const Color ink = earth;
+  static const Color inkMuted = Color(0xFF725766);
+  static const Color inkSoft = Color(0xFFA58A98);
+  static const Color inkOnDark = Color(0xFFFFF8FB);
 
-  static const Color mint = Color(0xFFBFE8D8);
-  static const Color mintSoft = Color(0xFFEAF8F2);
-  static const Color lavender = Color(0xFFD8D0F4);
-  static const Color lavenderSoft = Color(0xFFF1EEFC);
+  // Signal ve etkileşim durumları.
+  static const Color signalSoft = Color(0xFFF9DDEB);
+  static const Color signalStrong = plum;
+  static const Color signalGlow = Color(0x55FB9BBD);
 
-  static const Color border = Color(0xFFE1E7E4);
-  static const Color borderStrong = Color(0xFFCBD5D0);
-  static const Color success = Color(0xFF23856D);
-  static const Color warning = Color(0xFFB26B13);
-  static const Color error = Color(0xFFB42318);
+  // Geriye uyumluluk için korunan yardımcı renkler.
+  static const Color mint = Color(0xFFCFE8DF);
+  static const Color mintSoft = Color(0xFFEDF8F4);
+  static const Color lavender = Color(0xFFE0CFEA);
+  static const Color lavenderSoft = Color(0xFFF5ECF8);
+
+  static const Color border = Color(0xFFEBD7E1);
+  static const Color borderStrong = Color(0xFFD9BACB);
+  static const Color success = Color(0xFF287A64);
+  static const Color warning = Color(0xFFA35E18);
+  static const Color error = Color(0xFFA42E42);
+}
+
+abstract final class HexaGradients {
+  static const LinearGradient hope = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [HexaColors.hopePink, HexaColors.blush, HexaColors.mauve],
+    stops: [0, 0.52, 1],
+  );
+
+  static const LinearGradient signal = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [HexaColors.hopePink, HexaColors.signal, HexaColors.plum],
+  );
+
+  static const LinearGradient page = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFFFBFD), HexaColors.background, Color(0xFFFFF1F7)],
+  );
+
+  static const LinearGradient horizon = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      HexaColors.blush,
+      HexaColors.mauve,
+      HexaColors.horizon,
+      HexaColors.earth,
+    ],
+    stops: [0, 0.48, 0.78, 1],
+  );
+
+  static const RadialGradient glow = RadialGradient(
+    colors: [Color(0x88FB9BBD), Color(0x33C575B1), Color(0x00C575B1)],
+  );
 }
 
 abstract final class HexaSpacing {
@@ -42,44 +97,74 @@ abstract final class HexaRadius {
   static const double sm = 10;
   static const double md = 16;
   static const double lg = 24;
+  static const double xl = 30;
   static const double pill = 999;
+}
+
+abstract final class HexaMotion {
+  static const Duration instant = Duration(milliseconds: 100);
+  static const Duration fast = Duration(milliseconds: 180);
+  static const Duration normal = Duration(milliseconds: 300);
+  static const Duration slow = Duration(milliseconds: 520);
+
+  static const Curve enter = Cubic(0.20, 0.82, 0.28, 1.00);
+  static const Curve exit = Cubic(0.40, 0.00, 0.80, 0.20);
+  static const Curve emphasized = Cubic(0.16, 1.00, 0.30, 1.00);
+}
+
+abstract final class HexaShadows {
+  static const List<BoxShadow> soft = [
+    BoxShadow(color: Color(0x122F1713), blurRadius: 24, offset: Offset(0, 10)),
+  ];
+
+  static const List<BoxShadow> signal = [
+    BoxShadow(
+      color: Color(0x3DB15090),
+      blurRadius: 22,
+      spreadRadius: -3,
+      offset: Offset(0, 9),
+    ),
+  ];
 }
 
 class HexaTheme {
   HexaTheme._();
 
-  // Eski dosyalardaki kullanımları kırmamak için geriye uyumlu adlar.
+  // Eski ekranlardaki kullanımları kırmamak için geriye uyumlu adlar.
   static const Color primaryColor = HexaColors.signal;
   static const Color backgroundColor = HexaColors.background;
   static const Color surfaceColor = HexaColors.surface;
   static const Color textPrimary = HexaColors.ink;
   static const Color textSecondary = HexaColors.inkMuted;
-  static const Color accentColor = HexaColors.lavender;
+  static const Color accentColor = HexaColors.mauve;
 
   static ThemeData get lightTheme {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: HexaColors.signal,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: HexaColors.signal,
-      onPrimary: Colors.white,
-      primaryContainer: HexaColors.signalSoft,
-      onPrimaryContainer: HexaColors.ink,
-      secondary: HexaColors.mint,
-      onSecondary: HexaColors.ink,
-      secondaryContainer: HexaColors.mintSoft,
-      onSecondaryContainer: HexaColors.ink,
-      tertiary: HexaColors.lavender,
-      onTertiary: HexaColors.ink,
-      tertiaryContainer: HexaColors.lavenderSoft,
-      onTertiaryContainer: HexaColors.ink,
-      surface: HexaColors.surface,
-      onSurface: HexaColors.ink,
-      error: HexaColors.error,
-      onError: Colors.white,
-      outline: HexaColors.borderStrong,
-      outlineVariant: HexaColors.border,
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: HexaColors.signal,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: HexaColors.signalStrong,
+          onPrimary: Colors.white,
+          primaryContainer: HexaColors.signalSoft,
+          onPrimaryContainer: HexaColors.earth,
+          secondary: HexaColors.mauve,
+          onSecondary: Colors.white,
+          secondaryContainer: HexaColors.lavenderSoft,
+          onSecondaryContainer: HexaColors.earth,
+          tertiary: HexaColors.hopePink,
+          onTertiary: HexaColors.earth,
+          tertiaryContainer: HexaColors.surfaceWarm,
+          onTertiaryContainer: HexaColors.earth,
+          surface: HexaColors.surface,
+          onSurface: HexaColors.ink,
+          error: HexaColors.error,
+          onError: Colors.white,
+          outline: HexaColors.borderStrong,
+          outlineVariant: HexaColors.border,
+          shadow: HexaColors.earth,
+          scrim: HexaColors.earth,
+        );
 
     final base = ThemeData(
       useMaterial3: true,
@@ -89,6 +174,16 @@ class HexaTheme {
       canvasColor: HexaColors.background,
       dividerColor: HexaColors.border,
       disabledColor: HexaColors.inkSoft,
+      splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _HexaPageTransitionsBuilder(),
+          TargetPlatform.iOS: _HexaPageTransitionsBuilder(),
+          TargetPlatform.macOS: _HexaPageTransitionsBuilder(),
+          TargetPlatform.windows: _HexaPageTransitionsBuilder(),
+          TargetPlatform.linux: _HexaPageTransitionsBuilder(),
+        },
+      ),
     );
 
     final textTheme = base.textTheme.copyWith(
@@ -114,7 +209,7 @@ class HexaTheme {
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
         color: HexaColors.ink,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
         letterSpacing: -0.25,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
@@ -134,7 +229,7 @@ class HexaTheme {
         height: 1.35,
       ),
       labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
         letterSpacing: 0.1,
       ),
       labelMedium: base.textTheme.labelMedium?.copyWith(
@@ -169,21 +264,25 @@ class HexaTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: HexaColors.surface,
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        height: 72,
         indicatorColor: HexaColors.signalSoft,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HexaRadius.md),
+        ),
         iconTheme: MaterialStateProperty.resolveWith<IconThemeData>((states) {
           final isSelected = states.contains(MaterialState.selected);
           return IconThemeData(
-            color: isSelected ? HexaColors.signal : HexaColors.inkMuted,
+            color: isSelected ? HexaColors.plum : HexaColors.inkMuted,
             size: isSelected ? 27 : 25,
           );
         }),
         labelTextStyle: MaterialStateProperty.resolveWith<TextStyle>((states) {
           final isSelected = states.contains(MaterialState.selected);
           return TextStyle(
-            color: isSelected ? HexaColors.signal : HexaColors.inkMuted,
+            color: isSelected ? HexaColors.plum : HexaColors.inkMuted,
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
           );
@@ -192,11 +291,14 @@ class HexaTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: HexaColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: const TextStyle(color: HexaColors.inkSoft),
         labelStyle: const TextStyle(color: HexaColors.inkMuted),
         floatingLabelStyle: const TextStyle(
-          color: HexaColors.signal,
+          color: HexaColors.signalStrong,
           fontWeight: FontWeight.w700,
         ),
         border: inputBorder(HexaColors.border),
@@ -205,19 +307,47 @@ class HexaTheme {
         errorBorder: inputBorder(HexaColors.error),
         focusedErrorBorder: inputBorder(HexaColors.error, width: 1.5),
       ),
+      cardTheme: CardThemeData(
+        color: HexaColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HexaRadius.lg),
+          side: const BorderSide(color: HexaColors.border),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: HexaColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HexaRadius.lg),
+        ),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        backgroundColor: HexaColors.surfaceMuted,
+        selectedColor: HexaColors.signalSoft,
+        disabledColor: HexaColors.surfaceStrong,
+        side: const BorderSide(color: HexaColors.border),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HexaRadius.pill),
+        ),
+        labelStyle: const TextStyle(
+          color: HexaColors.ink,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 52),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          backgroundColor: HexaColors.signal,
+          backgroundColor: HexaColors.signalStrong,
           foregroundColor: Colors.white,
           disabledBackgroundColor: HexaColors.surfaceStrong,
           disabledForegroundColor: HexaColors.inkSoft,
           elevation: 0,
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HexaRadius.md),
           ),
@@ -229,10 +359,7 @@ class HexaTheme {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           foregroundColor: HexaColors.ink,
           side: const BorderSide(color: HexaColors.borderStrong),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HexaRadius.md),
           ),
@@ -240,11 +367,22 @@ class HexaTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: HexaColors.signal,
+          foregroundColor: HexaColors.signalStrong,
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(HexaRadius.sm),
           ),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: HexaColors.signalStrong,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(HexaRadius.md)),
         ),
       ),
       iconTheme: const IconThemeData(color: HexaColors.inkMuted),
@@ -254,14 +392,33 @@ class HexaTheme {
         space: 1,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: HexaColors.signal,
+        color: HexaColors.signalStrong,
         linearTrackColor: HexaColors.signalSoft,
         circularTrackColor: HexaColors.signalSoft,
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
+          return states.contains(MaterialState.selected)
+              ? Colors.white
+              : HexaColors.inkSoft;
+        }),
+        trackColor: MaterialStateProperty.resolveWith<Color>((states) {
+          return states.contains(MaterialState.selected)
+              ? HexaColors.signal
+              : HexaColors.surfaceStrong;
+        }),
+        trackOutlineColor: const MaterialStatePropertyAll(Colors.transparent),
+      ),
+      sliderTheme: base.sliderTheme.copyWith(
+        activeTrackColor: HexaColors.signalStrong,
+        inactiveTrackColor: HexaColors.signalSoft,
+        thumbColor: HexaColors.signal,
+        overlayColor: HexaColors.signalGlow,
+      ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: HexaColors.ink,
-        contentTextStyle: const TextStyle(color: Colors.white),
-        actionTextColor: HexaColors.mint,
+        backgroundColor: HexaColors.earth,
+        contentTextStyle: const TextStyle(color: HexaColors.inkOnDark),
+        actionTextColor: HexaColors.hopePink,
         behavior: SnackBarBehavior.floating,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -272,7 +429,7 @@ class HexaTheme {
         backgroundColor: HexaColors.surface,
         surfaceTintColor: Colors.transparent,
         modalBackgroundColor: HexaColors.surface,
-        modalBarrierColor: Color(0x660B141B),
+        modalBarrierColor: Color(0x662F1713),
         elevation: 0,
         showDragHandle: true,
         dragHandleColor: HexaColors.borderStrong,
@@ -282,4 +439,34 @@ class HexaTheme {
 
   /// Geçiş sürecinde eski `darkTheme` çağrılarını kırmaz.
   static ThemeData get darkTheme => lightTheme;
+}
+
+class _HexaPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _HexaPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curvedAnimation = CurvedAnimation(
+      parent: animation,
+      curve: HexaMotion.enter,
+      reverseCurve: HexaMotion.exit,
+    );
+
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0, end: 1).animate(curvedAnimation),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.018),
+          end: Offset.zero,
+        ).animate(curvedAnimation),
+        child: child,
+      ),
+    );
+  }
 }

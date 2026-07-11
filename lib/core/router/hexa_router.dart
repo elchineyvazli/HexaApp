@@ -6,6 +6,8 @@ import 'package:hexa/core/theme/hexa_theme.dart';
 import 'package:hexa/features/auth/application/auth_service.dart';
 import 'package:hexa/features/auth/presentation/auth_screen.dart';
 import 'package:hexa/features/auth/presentation/complete_profile_screen.dart';
+import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
+import 'package:hexa/features/auth/presentation/widgets/hexagon_logo.dart';
 import 'package:hexa/features/chat/chat_screen.dart';
 import 'package:hexa/features/feed/upload_screen.dart';
 import 'package:hexa/features/navigation/main_scaffold.dart';
@@ -13,6 +15,7 @@ import 'package:hexa/features/profile/profile_screen.dart';
 
 abstract final class HexaRoutes {
   static const String splash = '/splash';
+  static const String startupError = '/startup-error';
   static const String auth = '/auth';
   static const String completeProfile = '/complete-profile';
   static const String feed = '/feed';
@@ -48,6 +51,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isSignedIn = user != null;
       final isAuthLoading = authState.isLoading;
       final isProfileLoading = isSignedIn && profileCompletionState.isLoading;
+      final hasStartupError =
+          authState.hasError || (isSignedIn && profileCompletionState.hasError);
+
+      if (hasStartupError) {
+        return path == HexaRoutes.startupError ? null : HexaRoutes.startupError;
+      }
 
       if (isAuthLoading || isProfileLoading) {
         return path == HexaRoutes.splash ? null : HexaRoutes.splash;
@@ -57,9 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return path == HexaRoutes.auth ? null : HexaRoutes.auth;
       }
 
-      // Ağ/izin hatası mevcut oturumu kilitlemesin. Hata halinde kullanıcı
-      // feed'e alınır; hata ayrıca ekranların kendi veri katmanında gösterilir.
-      final isProfileCompleted = profileCompletionState.asData?.value ?? true;
+      final isProfileCompleted = profileCompletionState.asData?.value == true;
 
       if (!isProfileCompleted) {
         return path == HexaRoutes.completeProfile
@@ -69,6 +76,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isEntryRoute =
           path == HexaRoutes.splash ||
+          path == HexaRoutes.startupError ||
           path == HexaRoutes.auth ||
           path == HexaRoutes.completeProfile;
 
@@ -83,6 +91,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: HexaRoutes.splash,
         name: 'splash',
         builder: (context, state) => const _StartupScreen(),
+      ),
+      GoRoute(
+        path: HexaRoutes.startupError,
+        name: 'startup-error',
+        builder: (context, state) => const _StartupErrorScreen(),
       ),
       GoRoute(
         path: HexaRoutes.auth,
@@ -132,55 +145,117 @@ class _StartupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _HexaMark(),
-            SizedBox(height: HexaSpacing.lg),
-            SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(strokeWidth: 2.6),
+    return Scaffold(
+      body: Stack(
+        children: [
+          const AuthBackground(),
+          SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 650),
+                    curve: Curves.easeOutBack,
+                    tween: Tween(begin: 0.82, end: 1),
+                    builder: (context, value, child) {
+                      return Transform.scale(scale: value, child: child);
+                    },
+                    child: const HexagonLogo(size: 88),
+                  ),
+                  const SizedBox(height: HexaSpacing.md),
+                  Text(
+                    'HEXA',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'DEĞERLİ İÇERİK, GERÇEK DESTEK',
+                    style: TextStyle(
+                      color: HexaColors.inkMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: HexaSpacing.lg),
+                  const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _HexaMark extends StatelessWidget {
-  const _HexaMark();
+class _StartupErrorScreen extends ConsumerWidget {
+  const _StartupErrorScreen();
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: HexaColors.signal,
-            borderRadius: BorderRadius.circular(14),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          const AuthBackground(),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(HexaSpacing.lg),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Container(
+                    padding: const EdgeInsets.all(HexaSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: const Color(0xF7FFFFFF),
+                      borderRadius: BorderRadius.circular(HexaRadius.lg),
+                      border: Border.all(color: HexaColors.border),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const HexagonLogo(size: 72),
+                        const SizedBox(height: HexaSpacing.lg),
+                        Text(
+                          'Bağlantıyı tamamlayamadık',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: HexaSpacing.sm),
+                        Text(
+                          'Oturum veya profil bilgisi alınamadı. İnternet bağlantını kontrol edip yeniden dene.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: HexaColors.inkMuted),
+                        ),
+                        const SizedBox(height: HexaSpacing.lg),
+                        FilledButton.icon(
+                          onPressed: () {
+                            ref.invalidate(authStateProvider);
+                            ref.invalidate(profileCompletionProvider);
+                            context.go(HexaRoutes.splash);
+                          },
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Tekrar dene'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: const Icon(
-            Icons.favorite_rounded,
-            color: Colors.white,
-            size: 23,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Hexa',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.8,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

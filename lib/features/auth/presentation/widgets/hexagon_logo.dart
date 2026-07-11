@@ -1,52 +1,111 @@
-// lib/features/auth/presentation/widgets/hexagon_logo.dart
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
+
+/// Hexa'nın yeni marka işareti: altıgen yapı + kalp biçimli Signal.
 class HexagonLogo extends StatelessWidget {
-  const HexagonLogo({super.key});
+  const HexagonLogo({
+    this.size = 92,
+    this.showShadow = true,
+    super.key,
+  });
+
+  final double size;
+  final bool showShadow;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(220, 220),
-      painter: HexagonPainter(color: const Color(0xFFFF5E00)),
+    return Semantics(
+      image: true,
+      label: 'Hexa Signal logosu',
+      child: SizedBox.square(
+        dimension: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CustomPaint(
+              size: Size.square(size),
+              painter: HexagonPainter(showShadow: showShadow),
+            ),
+            Container(
+              width: size * 0.42,
+              height: size * 0.42,
+              decoration: const BoxDecoration(
+                color: HexaColors.signal,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.favorite_rounded,
+                color: Colors.white,
+                size: size * 0.23,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class HexagonPainter extends CustomPainter {
-  final Color color;
-  HexagonPainter({required this.color});
+  const HexagonPainter({this.showShadow = true});
+
+  final bool showShadow;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final glowPaint = Paint()
-      ..color = color.withOpacity(0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-
     final path = Path();
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final radius = size.width / 2;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide * 0.47;
 
-    for (int i = 0; i < 6; i++) {
-      double angle = (2 * math.pi / 6) * i;
-      double x = centerX + radius * math.cos(angle);
-      double y = centerY + radius * math.sin(angle);
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    for (var index = 0; index < 6; index++) {
+      final angle = -math.pi / 2 + (math.pi / 3 * index);
+      final point = Offset(
+        center.dx + radius * math.cos(angle),
+        center.dy + radius * math.sin(angle),
+      );
+
+      if (index == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
     }
     path.close();
-    canvas.drawPath(path, glowPaint);
-    canvas.drawPath(path, paint);
+
+    if (showShadow) {
+      canvas.drawShadow(
+        path,
+        const Color(0x2AD83A56),
+        size.shortestSide * 0.1,
+        false,
+      );
+    }
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white,
+          HexaColors.signalSoft,
+        ],
+      ).createShader(Offset.zero & size);
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.4, size.shortestSide * 0.018).toDouble()
+      ..color = HexaColors.signal;
+
+    canvas.drawPath(path, fillPaint);
+    canvas.drawPath(path, borderPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant HexagonPainter oldDelegate) {
+    return oldDelegate.showShadow != showShadow;
+  }
 }
