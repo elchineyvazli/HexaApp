@@ -1,0 +1,181 @@
+﻿Flutter 3.38.5 ΓÇó channel stable ΓÇó https://github.com/flutter/flutter.git
+Framework ΓÇó revision f6ff1529fd (7 months ago) ΓÇó 2025-12-11 11:50:07 -0500
+Engine ΓÇó hash c108a94d7a8273e112339e6c6833daa06e723a54 (revision 1527ae0ec5) (6 months ago) ΓÇó 2025-12-11 15:04:31.000Z
+Tools ΓÇó Dart 3.10.4 ΓÇó DevTools 2.51.1
+Dart SDK version: 3.10.4 (stable) (Tue Dec 9 00:01:55 2025 -0800) on "windows_x64"
+Dart SDK 3.10.4
+Flutter SDK 3.38.5
+hexa 1.0.0+1
+
+dependencies:
+- cached_network_image 3.4.0 [cached_network_image_platform_interface cached_network_image_web flutter flutter_cache_manager octo_image]
+- cloud_firestore 4.17.5 [cloud_firestore_platform_interface cloud_firestore_web collection firebase_core firebase_core_platform_interface flutter meta]
+- firebase_auth 4.16.0 [firebase_auth_platform_interface firebase_auth_web firebase_core firebase_core_platform_interface flutter meta]
+- firebase_core 2.32.0 [firebase_core_platform_interface firebase_core_web flutter meta]
+- firebase_storage 11.6.5 [firebase_core firebase_core_platform_interface firebase_storage_platform_interface firebase_storage_web flutter]
+- flutter 0.0.0 [characters collection material_color_utilities meta vector_math sky_engine]
+- flutter_animate 4.5.2 [flutter flutter_shaders]
+- flutter_cache_manager 3.4.1 [clock collection file flutter http path path_provider rxdart sqflite uuid]
+- flutter_riverpod 2.6.1 [collection flutter meta riverpod state_notifier]
+- go_router 13.2.5 [collection flutter flutter_web_plugins logging meta]
+- google_fonts 6.3.3 [crypto flutter http path_provider]
+- google_sign_in 6.3.0 [flutter google_sign_in_android google_sign_in_ios google_sign_in_platform_interface google_sign_in_web]
+- image_picker 1.2.3 [flutter image_picker_android image_picker_for_web image_picker_ios image_picker_linux image_picker_macos image_picker_platform_interface image_picker_windows]
+- just_audio 0.10.6 [just_audio_platform_interface just_audio_web audio_session rxdart path path_provider async uuid crypto meta flutter synchronized]
+- preload_page_view 0.1.6 [flutter]
+- purchases_flutter 8.1.0 [flutter freezed_annotation json_annotation]
+- riverpod_annotation 2.6.1 [meta riverpod]
+- shared_preferences 2.3.5 [flutter shared_preferences_android shared_preferences_foundation shared_preferences_linux shared_preferences_platform_interface shared_preferences_web shared_preferences_windows]
+- video_player 2.11.1 [collection flutter html video_player_android video_player_avfoundation video_player_platform_interface video_player_web]
+
+dev dependencies:
+- build_runner 2.4.14 [analyzer args async build build_config build_daemon build_resolvers build_runner_core code_builder collection crypto dart_style frontend_server_client glob graphs http_multi_server io js logging meta mime package_config path pool pub_semver pubspec_parse shelf shelf_web_socket stack_trace stream_transform timing watcher web_socket_channel yaml]
+- flutter_lints 3.0.2 [lints]
+- flutter_test 0.0.0 [flutter test_api matcher path fake_async clock stack_trace vector_math leak_tracker_flutter_testing collection meta stream_channel]
+- riverpod_generator 2.6.4 [analyzer build build_config collection crypto meta path riverpod_analyzer_utils riverpod_annotation source_gen]
+
+transitive dependencies:
+- _fe_analyzer_shared 85.0.0 [meta]
+- _flutterfire_internals 1.3.35 [collection firebase_core firebase_core_platform_interface flutter meta]
+- analyzer 7.6.0 [_fe_analyzer_shared collection convert crypto glob meta package_config path pub_semver source_span watcher yaml]
+- analyzer_plugin 0.13.4 [analyzer collection dart_style pub_semver yaml path]
+- args 2.7.0
+- async 2.13.1 [collection meta]
+- audio_session 0.2.4 [flutter flutter_web_plugins rxdart meta]
+- boolean_selector 2.1.2 [source_span string_scanner]
+- build 2.4.2 [analyzer async convert crypto glob logging meta package_config path]
+- build_config 1.1.2 [checked_yaml json_annotation path pubspec_parse yaml]
+- build_daemon 4.1.1 [built_collection built_value crypto http_multi_server logging path pool shelf shelf_web_socket stream_transform watcher web_socket_channel]
+- build_resolvers 2.4.4 [analyzer async build collection convert crypto graphs logging package_config path pool pub_semver stream_transform yaml]
+- build_runner_core 8.0.0 [async build build_config build_resolvers collection convert crypto glob graphs json_annotation logging meta package_config path pool timing watcher yaml]
+- built_collection 5.1.1
+- built_value 8.12.6 [built_collection collection fixnum meta]
+- cached_network_image_platform_interface 4.1.1 [flutter flutter_cache_manager]
+- cached_network_image_web 1.3.0 [cached_network_image_platform_interface flutter flutter_cache_manager]
+- characters 1.4.0
+- checked_yaml 2.0.4 [json_annotation source_span yaml]
+- clock 1.1.2
+- cloud_firestore_platform_interface 6.2.5 [_flutterfire_internals collection firebase_core flutter meta plugin_platform_interface]
+- cloud_firestore_web 3.12.5 [_flutterfire_internals cloud_firestore_platform_interface collection firebase_core firebase_core_web flutter flutter_web_plugins]
+- code_assets 1.2.1 [collection hooks]
+- code_builder 4.11.1 [built_collection built_value collection matcher meta]
+- collection 1.19.1
+- convert 3.1.2 [typed_data]
+- cross_file 0.3.5+4 [meta web]
+- crypto 3.0.7 [typed_data]
+- csslib 1.0.2 [source_span]
+- custom_lint_core 0.7.5 [analyzer analyzer_plugin collection custom_lint_visitor glob matcher meta package_config path pubspec_parse source_span uuid yaml]
+- custom_lint_visitor 1.0.0+7.7.0 [analyzer]
+- dart_style 3.1.1 [analyzer args collection package_config path pub_semver source_span yaml]
+- fake_async 1.3.3 [clock collection]
+- ffi 2.2.0
+- file 7.0.1 [meta path]
+- file_selector_linux 0.9.4 [cross_file file_selector_platform_interface flutter]
+- file_selector_macos 0.9.5 [cross_file file_selector_platform_interface flutter]
+- file_selector_platform_interface 2.7.0 [cross_file flutter http plugin_platform_interface]
+- file_selector_windows 0.9.3+5 [cross_file file_selector_platform_interface flutter]
+- firebase_auth_platform_interface 7.3.0 [_flutterfire_internals collection firebase_core flutter meta plugin_platform_interface]
+- firebase_auth_web 5.8.13 [firebase_auth_platform_interface firebase_core firebase_core_web flutter flutter_web_plugins http_parser js meta]
+- firebase_core_platform_interface 5.4.2 [collection flutter flutter_test meta plugin_platform_interface]
+- firebase_core_web 2.24.0 [firebase_core_platform_interface flutter flutter_web_plugins meta web]
+- firebase_storage_platform_interface 5.1.22 [_flutterfire_internals collection firebase_core flutter meta plugin_platform_interface]
+- firebase_storage_web 3.6.22 [_flutterfire_internals async firebase_core firebase_core_web firebase_storage_platform_interface flutter flutter_web_plugins http js meta]
+- fixnum 1.1.1
+- flutter_plugin_android_lifecycle 2.0.35 [flutter]
+- flutter_shaders 0.1.3 [flutter vector_math]
+- flutter_web_plugins 0.0.0 [flutter]
+- freezed_annotation 2.4.4 [collection json_annotation meta]
+- frontend_server_client 4.0.0 [async path]
+- glob 2.1.3 [async collection file path string_scanner]
+- google_identity_services_web 0.3.3+1 [meta web]
+- google_sign_in_android 6.2.1 [flutter google_sign_in_platform_interface]
+- google_sign_in_ios 5.9.0 [flutter google_sign_in_platform_interface]
+- google_sign_in_platform_interface 2.5.0 [flutter plugin_platform_interface]
+- google_sign_in_web 0.12.4+4 [flutter flutter_web_plugins google_identity_services_web google_sign_in_platform_interface http web]
+- graphs 2.3.2 [collection]
+- hooks 2.0.2 [collection crypto logging meta pub_semver record_use yaml]
+- html 0.15.6 [csslib source_span]
+- http 1.6.0 [async http_parser meta web]
+- http_multi_server 3.2.2 [async]
+- http_parser 4.1.2 [collection source_span string_scanner typed_data]
+- image_picker_android 0.8.13+17 [flutter flutter_plugin_android_lifecycle image_picker_platform_interface meta]
+- image_picker_for_web 3.1.1 [flutter flutter_web_plugins image_picker_platform_interface mime web]
+- image_picker_ios 0.8.13+6 [flutter image_picker_platform_interface]
+- image_picker_linux 0.2.2 [file_selector_linux file_selector_platform_interface flutter image_picker_platform_interface]
+- image_picker_macos 0.2.2+1 [file_selector_macos file_selector_platform_interface flutter image_picker_platform_interface]
+- image_picker_platform_interface 2.11.1 [cross_file flutter http plugin_platform_interface]
+- image_picker_windows 0.2.2 [file_selector_platform_interface file_selector_windows flutter image_picker_platform_interface]
+- io 1.0.5 [meta path string_scanner]
+- jni 1.0.0 [args collection ffi meta package_config path plugin_platform_interface]
+- jni_flutter 1.0.1 [flutter jni]
+- js 0.6.7 [meta]
+- json_annotation 4.12.0 [meta]
+- just_audio_platform_interface 4.6.0 [flutter plugin_platform_interface]
+- just_audio_web 0.4.16 [just_audio_platform_interface flutter flutter_web_plugins web synchronized]
+- leak_tracker 11.0.2 [clock collection meta path vm_service]
+- leak_tracker_flutter_testing 3.0.10 [flutter leak_tracker leak_tracker_testing matcher meta]
+- leak_tracker_testing 3.0.2 [leak_tracker matcher meta]
+- lints 3.0.0
+- logging 1.3.0
+- matcher 0.12.17 [async meta stack_trace term_glyph test_api]
+- material_color_utilities 0.11.1 [collection]
+- meta 1.17.0
+- mime 2.0.0
+- objective_c 9.4.1 [code_assets collection ffi hooks logging meta pub_semver]
+- octo_image 2.1.0 [flutter]
+- package_config 2.2.0 [path]
+- path 1.9.1
+- path_provider 2.1.6 [flutter path_provider_android path_provider_foundation path_provider_linux path_provider_platform_interface path_provider_windows]
+- path_provider_android 2.3.1 [flutter jni jni_flutter path_provider_platform_interface]
+- path_provider_foundation 2.6.0 [ffi flutter objective_c path_provider_platform_interface]
+- path_provider_linux 2.2.2 [ffi flutter path path_provider_platform_interface xdg_directories]
+- path_provider_platform_interface 2.1.3 [flutter platform plugin_platform_interface]
+- path_provider_windows 2.3.0 [ffi flutter path path_provider_platform_interface]
+- platform 3.1.6
+- plugin_platform_interface 2.1.8 [meta]
+- pool 1.5.2 [async stack_trace]
+- pub_semver 2.2.0 [collection]
+- pubspec_parse 1.5.0 [checked_yaml collection json_annotation pub_semver yaml]
+- record_use 0.6.0 [collection meta pub_semver]
+- riverpod 2.6.1 [collection meta stack_trace state_notifier]
+- riverpod_analyzer_utils 0.5.9 [analyzer collection crypto custom_lint_core freezed_annotation meta path source_span]
+- rxdart 0.28.0
+- shared_preferences_android 2.4.23 [flutter shared_preferences_platform_interface]
+- shared_preferences_foundation 2.5.6 [flutter shared_preferences_platform_interface]
+- shared_preferences_linux 2.4.1 [file flutter path path_provider_linux path_provider_platform_interface shared_preferences_platform_interface]
+- shared_preferences_platform_interface 2.4.2 [flutter plugin_platform_interface]
+- shared_preferences_web 2.4.3 [flutter flutter_web_plugins shared_preferences_platform_interface web]
+- shared_preferences_windows 2.4.1 [file flutter path path_provider_platform_interface path_provider_windows shared_preferences_platform_interface]
+- shelf 1.4.2 [async collection http_parser path stack_trace stream_channel]
+- shelf_web_socket 2.0.1 [shelf stream_channel web_socket_channel]
+- sky_engine 0.0.0
+- source_gen 2.0.0 [analyzer async build dart_style glob path pub_semver source_span yaml]
+- source_span 1.10.2 [collection path term_glyph]
+- sqflite 2.4.2+1 [flutter sqflite_android sqflite_darwin sqflite_platform_interface sqflite_common path]
+- sqflite_android 2.4.2+3 [flutter sqflite_common path sqflite_platform_interface]
+- sqflite_common 2.5.8 [synchronized path meta]
+- sqflite_darwin 2.4.2 [flutter sqflite_platform_interface meta sqflite_common path]
+- sqflite_platform_interface 2.4.0 [flutter platform sqflite_common plugin_platform_interface meta]
+- stack_trace 1.12.1 [path]
+- state_notifier 1.0.0 [meta]
+- stream_channel 2.1.4 [async]
+- stream_transform 2.1.1
+- string_scanner 1.4.1 [source_span]
+- synchronized 3.4.0
+- term_glyph 1.2.2
+- test_api 0.7.7 [async boolean_selector collection meta source_span stack_trace stream_channel string_scanner term_glyph]
+- timing 1.0.2 [json_annotation]
+- typed_data 1.4.0 [collection]
+- uuid 4.5.3 [crypto fixnum]
+- vector_math 2.2.0
+- video_player_android 2.9.5 [flutter video_player_platform_interface]
+- video_player_avfoundation 2.10.0 [flutter meta video_player_platform_interface]
+- video_player_platform_interface 6.8.0 [flutter plugin_platform_interface]
+- video_player_web 2.4.0 [flutter flutter_web_plugins video_player_platform_interface web]
+- vm_service 15.2.0
+- watcher 1.2.1 [async path]
+- web 1.1.1
+- web_socket 1.0.1 [web]
+- web_socket_channel 3.0.3 [async crypto stream_channel web web_socket]
+- xdg_directories 1.1.0 [meta path]
+- yaml 3.1.3 [collection source_span string_scanner]

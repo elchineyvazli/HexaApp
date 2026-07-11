@@ -1,6 +1,7 @@
 // lib/features/feed/video_item.dart
 
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -355,32 +356,108 @@ class _VideoItemState extends ConsumerState<VideoItem>
   Widget _buildVideoSurface() {
     final controller = _controller;
 
-    return ColoredBox(
-      color: const Color(0xFF11181D),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (widget.video.thumbnailUrl.trim().isNotEmpty)
-            Image.network(
-              widget.video.thumbnailUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox.shrink();
-              },
-            ),
-          if (_isInitialized && controller != null)
-            FittedBox(
-              fit: BoxFit.cover,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: controller.value.size.width,
-                height: controller.value.size.height,
-                child: VideoPlayer(controller),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final runtimeAspectRatio = _controllerAspectRatio(controller);
+        final aspectRatio =
+            runtimeAspectRatio ?? widget.video.aspectRatio ?? (9 / 16);
+        final geometry = _VideoSurfaceGeometry.resolve(
+          constraints: constraints,
+          aspectRatio: aspectRatio,
+        );
+
+        return ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _HopeVideoBackdrop(
+                thumbnailUrl: widget.video.thumbnailUrl,
               ),
-            ),
-        ],
-      ),
+              Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  width: geometry.width,
+                  height: geometry.height,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F1713),
+                    borderRadius: BorderRadius.circular(geometry.borderRadius),
+                    border: geometry.isFullBleed
+                        ? null
+                        : Border.all(
+                            color: const Color(0x40FFFFFF),
+                            width: 0.8,
+                          ),
+                    boxShadow: geometry.isFullBleed
+                        ? const <BoxShadow>[]
+                        : const <BoxShadow>[
+                            BoxShadow(
+                              color: Color(0x66000000),
+                              blurRadius: 34,
+                              spreadRadius: 2,
+                              offset: Offset(0, 14),
+                            ),
+                          ],
+                  ),
+                  child: _buildForegroundMedia(controller),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  Widget _buildForegroundMedia(VideoPlayerController? controller) {
+    if (_isInitialized && controller != null) {
+      final size = controller.value.size;
+      if (size.width > 0 && size.height > 0) {
+        return FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: VideoPlayer(controller),
+          ),
+        );
+      }
+    }
+
+    final thumbnailUrl = widget.video.thumbnailUrl.trim();
+    if (thumbnailUrl.isNotEmpty) {
+      return Image.network(
+        thumbnailUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return const _HopeVideoPlaceholder();
+        },
+      );
+    }
+
+    return const _HopeVideoPlaceholder();
+  }
+
+  double? _controllerAspectRatio(VideoPlayerController? controller) {
+    if (!_isInitialized || controller == null) {
+      return null;
+    }
+
+    final size = controller.value.size;
+    if (size.width <= 0 || size.height <= 0) {
+      return null;
+    }
+
+    final ratio = size.width / size.height;
+    if (!ratio.isFinite || ratio < 0.2 || ratio > 5) {
+      return null;
+    }
+
+    return ratio;
   }
 
   Widget _buildCenterPlaybackIcon() {
@@ -489,6 +566,158 @@ class _VideoItemState extends ConsumerState<VideoItem>
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+
+class _VideoSurfaceGeometry {
+  const _VideoSurfaceGeometry({
+    required this.width,
+    required this.height,
+    required this.borderRadius,
+    required this.isFullBleed,
+  });
+
+  final double width;
+  final double height;
+  final double borderRadius;
+  final bool isFullBleed;
+
+  factory _VideoSurfaceGeometry.resolve({
+    required BoxConstraints constraints,
+    required double aspectRatio,
+  }) {
+    final viewportWidth =
+        constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : 360.0;
+    final viewportHeight =
+        constraints.maxHeight.isFinite && constraints.maxHeight > 0
+            ? constraints.maxHeight
+            : 640.0;
+
+    final safeRatio =
+        aspectRatio.isFinite && aspectRatio >= 0.2 && aspectRatio <= 5
+            ? aspectRatio
+            : (9 / 16);
+
+    var width = viewportWidth;
+    var height = width / safeRatio;
+
+    if (height > viewportHeight) {
+      height = viewportHeight;
+      width = height * safeRatio;
+    }
+
+    width = width.clamp(1.0, viewportWidth).toDouble();
+    height = height.clamp(1.0, viewportHeight).toDouble();
+
+    final widthCoverage = width / viewportWidth;
+    final heightCoverage = height / viewportHeight;
+    final isFullBleed = widthCoverage >= 0.995 && heightCoverage >= 0.995;
+
+    final borderRadius = isFullBleed
+        ? 0.0
+        : safeRatio >= 1
+            ? 24.0
+            : 20.0;
+
+    return _VideoSurfaceGeometry(
+      width: width,
+      height: height,
+      borderRadius: borderRadius,
+      isFullBleed: isFullBleed,
+    );
+  }
+}
+
+class _HopeVideoBackdrop extends StatelessWidget {
+  const _HopeVideoBackdrop({
+    required this.thumbnailUrl,
+  });
+
+  final String thumbnailUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedThumbnailUrl = thumbnailUrl.trim();
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Color(0xFFFB9BBD),
+                Color(0xFFB15090),
+                Color(0xFF601F24),
+                Color(0xFF2F1713),
+              ],
+              stops: <double>[0, 0.38, 0.72, 1],
+            ),
+          ),
+        ),
+        if (normalizedThumbnailUrl.isNotEmpty)
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            child: Transform.scale(
+              scale: 1.16,
+              child: Image.network(
+                normalizedThumbnailUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Color(0x35FB9BBD),
+                Color(0x59451C2C),
+                Color(0xB31A1010),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HopeVideoPlaceholder extends StatelessWidget {
+  const _HopeVideoPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            Color(0xFFFB9BBD),
+            Color(0xFFC575B1),
+            Color(0xFF833C69),
+            Color(0xFF601F24),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.favorite_rounded,
+          color: Color(0xD9FFFFFF),
+          size: 42,
+        ),
       ),
     );
   }

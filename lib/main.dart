@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hexa/core/router/hexa_router.dart';
 import 'package:hexa/core/theme/hexa_theme.dart';
@@ -7,6 +8,17 @@ import 'package:hexa/firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: HexaColors.surface,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarDividerColor: HexaColors.border,
+    ),
+  );
 
   try {
     await Firebase.initializeApp(
@@ -16,8 +28,7 @@ Future<void> main() async {
     runApp(const ProviderScope(child: HexaApp()));
   } catch (error, stackTrace) {
     debugPrint('Firebase initialization failed: $error');
-    debugPrint('$stackTrace');
-
+    debugPrintStack(stackTrace: stackTrace);
     runApp(HexaStartupFailureApp(error: error));
   }
 }
@@ -32,7 +43,8 @@ class HexaApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Hexa',
       debugShowCheckedModeBanner: false,
-      theme: HexaTheme.darkTheme,
+      theme: HexaTheme.lightTheme,
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }
@@ -48,59 +60,82 @@ class HexaStartupFailureApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hexa',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: HexaTheme.lightTheme,
       home: Scaffold(
-        backgroundColor: const Color(0xFF08070D),
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(HexaSpacing.lg),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 620),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      size: 64,
-                      color: Color(0xFFFF6B6B),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Hexa başlatılamadı',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Container(
+                  padding: const EdgeInsets.all(HexaSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: HexaColors.surface,
+                    borderRadius: BorderRadius.circular(HexaRadius.lg),
+                    border: Border.all(color: HexaColors.border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x120B141B),
+                        blurRadius: 32,
+                        offset: Offset(0, 14),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Firebase başlangıç yapılandırmasında bir hata oluştu.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: const BoxDecoration(
+                          color: HexaColors.signalSoft,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.cloud_off_rounded,
+                          size: 34,
+                          color: HexaColors.signal,
                         ),
                       ),
-                      child: SelectableText(
-                        error.toString(),
+                      const SizedBox(height: HexaSpacing.lg),
+                      Text(
+                        'Hexa başlatılamadı',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          color: Colors.white70,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: HexaSpacing.sm),
+                      Text(
+                        'Firebase başlangıç yapılandırması kontrol edilmeli.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: HexaColors.inkMuted,
+                            ),
+                      ),
+                      const SizedBox(height: HexaSpacing.lg),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(HexaSpacing.md),
+                        decoration: BoxDecoration(
+                          color: HexaColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(HexaRadius.md),
+                          border: Border.all(color: HexaColors.border),
+                        ),
+                        child: SelectableText(
+                          error.toString(),
+                          textAlign: TextAlign.left,
+                          style: const TextStyle(
+                            color: HexaColors.inkMuted,
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            height: 1.45,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

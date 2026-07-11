@@ -1,5 +1,5 @@
 name: hexa
-description: Cyberpunk Minimalist Vertical Video & Instant Chat Social Media Platform.
+description: Hopeful vertical video and meaningful support social platform.
 version: 1.0.0+1
 
 environment:
@@ -17,17 +17,24 @@ dependencies:
   go_router: ^13.2.0
 
   # Backend & Auth
-  firebase_core: ^2.27.0
-  firebase_auth: ^4.16.0
+  # Keep the FlutterFire family on the same current generation.
+  firebase_core: ^4.11.0
+  firebase_auth: ^6.5.4
+  cloud_firestore: ^6.6.0
+  firebase_storage: ^13.4.3
+
+  # Keep 6.x for now because Hexa's AuthService uses the pre-7 API.
   google_sign_in: 6.3.0
-  cloud_firestore: ^4.15.8
-  firebase_storage: ^11.6.0
 
   # Media & Caching
   video_player: ^2.11.1
+  just_audio: ^0.10.6
   preload_page_view: ^0.1.5
   flutter_cache_manager: ^3.3.1
   cached_network_image: ^3.3.1
+
+  # Local preferences
+  shared_preferences: 2.3.5
 
   # Monetization
   purchases_flutter: 8.1.0
