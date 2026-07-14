@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hexa/core/router/hexa_router.dart';
 import 'package:hexa/core/theme/hexa_theme.dart';
+import 'package:hexa/features/settings/app_settings_controller.dart';
 import 'package:hexa/firebase_options.dart';
 
 Future<void> main() async {
@@ -12,11 +13,7 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
       systemNavigationBarColor: HexaColors.surface,
-      systemNavigationBarIconBrightness: Brightness.dark,
-      systemNavigationBarDividerColor: HexaColors.border,
     ),
   );
 
@@ -29,6 +26,7 @@ Future<void> main() async {
   } catch (error, stackTrace) {
     debugPrint('Firebase initialization failed: $error');
     debugPrintStack(stackTrace: stackTrace);
+
     runApp(HexaStartupFailureApp(error: error));
   }
 }
@@ -39,13 +37,33 @@ class HexaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final settings = ref.watch(appSettingsProvider);
 
     return MaterialApp.router(
       title: 'Hexa',
       debugShowCheckedModeBanner: false,
-      theme: HexaTheme.lightTheme,
-      themeMode: ThemeMode.light,
+      theme: settings.lightTheme,
+      darkTheme: settings.darkTheme,
+      themeMode: settings.materialThemeMode,
       routerConfig: router,
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        final dark = theme.brightness == Brightness.dark;
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+            statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+            systemNavigationBarColor: theme.scaffoldBackgroundColor,
+            systemNavigationBarIconBrightness: dark
+                ? Brightness.light
+                : Brightness.dark,
+            systemNavigationBarDividerColor: theme.dividerColor,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
@@ -102,17 +120,16 @@ class HexaStartupFailureApp extends StatelessWidget {
                       Text(
                         'Hexa başlatılamadı',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: HexaSpacing.sm),
                       Text(
                         'Firebase başlangıç yapılandırması kontrol edilmeli.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: HexaColors.inkMuted,
-                            ),
+                          color: HexaColors.inkMuted,
+                        ),
                       ),
                       const SizedBox(height: HexaSpacing.lg),
                       Container(
@@ -125,7 +142,6 @@ class HexaStartupFailureApp extends StatelessWidget {
                         ),
                         child: SelectableText(
                           error.toString(),
-                          textAlign: TextAlign.left,
                           style: const TextStyle(
                             color: HexaColors.inkMuted,
                             fontFamily: 'monospace',

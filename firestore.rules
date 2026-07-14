@@ -18,6 +18,18 @@ service cloud.firestore {
       return /databases/$(database)/documents/usernames/$(usernameKey);
     }
 
+    function signalPath(videoId, userId) {
+      return /databases/$(database)/documents/videos/$(videoId)/signals/$(userId);
+    }
+
+    function legacyLikePath(videoId, userId) {
+      return /databases/$(database)/documents/videos/$(videoId)/likes/$(userId);
+    }
+
+    function viewPath(videoId, userId) {
+      return /databases/$(database)/documents/videos/$(videoId)/views/$(userId);
+    }
+
     function validUsernameKey(value) {
       return value is string
         && value.size() >= 3
@@ -26,11 +38,17 @@ service cloud.firestore {
     }
 
     function signalCount(data) {
-      return data.get('signalCount', data.get('likesCount', 0));
+      return data.get(
+        'signalCount',
+        data.get('likesCount', 0)
+      );
     }
 
     function uniqueSignalersCount(data) {
-      return data.get('uniqueSignalersCount', signalCount(data));
+      return data.get(
+        'uniqueSignalersCount',
+        signalCount(data)
+      );
     }
 
     function commentsCount(data) {
@@ -77,15 +95,30 @@ service cloud.firestore {
     }
 
     function validUserUpdate(userId) {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let usernameChanged = changed.hasAny(['username', 'usernameKey']);
-      let usernameKey = request.resource.data.get('usernameKey', '');
-      let validReservation = validUsernameKey(usernameKey)
-        && request.resource.data.get('username', '') == '@' + usernameKey
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+
+      let usernameChanged = changed.hasAny([
+        'username',
+        'usernameKey'
+      ]);
+
+      let usernameKey = request.resource.data.get(
+        'usernameKey',
+        ''
+      );
+
+      let validReservation =
+        validUsernameKey(usernameKey)
+        && request.resource.data.get('username', '')
+          == '@' + usernameKey
         && existsAfter(usernamePath(usernameKey))
-        && getAfter(usernamePath(usernameKey)).data.uid == userId;
+        && getAfter(usernamePath(usernameKey)).data.uid
+          == userId;
 
       return changed.hasOnly([
+          'uid',
           'email',
           'username',
           'usernameKey',
@@ -101,8 +134,7 @@ service cloud.firestore {
           'lastSignInAt'
         ])
         && request.resource.data.get('uid', userId) == userId
-        && request.resource.data.get('uid', userId)
-          == resource.data.get('uid', userId)
+        && resource.data.get('uid', userId) == userId
         && request.resource.data.get('displayName', '') is string
         && request.resource.data.get('displayName', '').size() <= 40
         && request.resource.data.get('bio', '') is string
@@ -111,7 +143,37 @@ service cloud.firestore {
     }
 
     function validVideoCreate() {
-      return request.resource.data.keys().hasOnly([
+      return request.resource.data.keys().hasAll([
+          'schemaVersion',
+          'videoUrl',
+          'thumbnailUrl',
+          'description',
+          'caption',
+          'uploaderId',
+          'username',
+          'uploaderDisplayName',
+          'uploaderAvatarUrl',
+          'processingStatus',
+          'status',
+          'visibility',
+          'durationMs',
+          'width',
+          'height',
+          'aspectRatio',
+          'signalCount',
+          'uniqueSignalersCount',
+          'signalDistribution',
+          'likesCount',
+          'viewsCount',
+          'sharesCount',
+          'commentsCount',
+          'artifactCount',
+          'uniqueArtifactSupportersCount',
+          'impactScore',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
           'schemaVersion',
           'videoUrl',
           'hlsUrl',
@@ -129,6 +191,7 @@ service cloud.firestore {
           'durationMs',
           'width',
           'height',
+          'aspectRatio',
           'signalCount',
           'uniqueSignalersCount',
           'signalDistribution',
@@ -142,30 +205,82 @@ service cloud.firestore {
           'createdAt',
           'updatedAt'
         ])
-        && request.resource.data.uploaderId == request.auth.uid
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion == 2
+        && request.resource.data.uploaderId
+          == request.auth.uid
+
         && request.resource.data.videoUrl is string
         && request.resource.data.videoUrl.size() > 0
-        && request.resource.data.get('description', '') is string
-        && request.resource.data.get('description', '').size() <= 300
-        && request.resource.data.get('caption', '') is string
-        && request.resource.data.get('caption', '').size() <= 300
-        && request.resource.data.get('visibility', 'public')
-          in ['public', 'followers_only', 'private']
-        && signalCount(request.resource.data) == 0
-        && uniqueSignalersCount(request.resource.data) == 0
-        && commentsCount(request.resource.data) == 0
-        && request.resource.data.get('viewsCount', 0) == 0
-        && sharesCount(request.resource.data) == 0
-        && request.resource.data.get('artifactCount', 0) == 0
-        && request.resource.data.get('uniqueArtifactSupportersCount', 0) == 0
-        && request.resource.data.get('impactScore', 0) == 0
+        && request.resource.data.videoUrl.size() <= 4096
+
+        && request.resource.data.thumbnailUrl is string
+        && request.resource.data.thumbnailUrl.size() > 0
+        && request.resource.data.thumbnailUrl.size() <= 4096
+
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 2
+        && request.resource.data.username.size() <= 80
+
+        && request.resource.data.uploaderDisplayName is string
+        && request.resource.data.uploaderDisplayName.size() <= 80
+
+        && request.resource.data.uploaderAvatarUrl is string
+        && request.resource.data.uploaderAvatarUrl.size() <= 4096
+
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() >= 1
+        && request.resource.data.caption.size() <= 300
+
+        && request.resource.data.description is string
+        && request.resource.data.description
+          == request.resource.data.caption
+
+        && request.resource.data.durationMs is int
+        && request.resource.data.durationMs > 0
+        && request.resource.data.durationMs <= 180000
+
+        && request.resource.data.width is int
+        && request.resource.data.width > 0
+        && request.resource.data.width <= 10000
+
+        && request.resource.data.height is int
+        && request.resource.data.height > 0
+        && request.resource.data.height <= 10000
+
+        && request.resource.data.aspectRatio is number
+        && request.resource.data.aspectRatio >= 0.2
+        && request.resource.data.aspectRatio <= 5
+
+        && request.resource.data.processingStatus == 'ready'
+        && request.resource.data.status == 'ready'
+        && request.resource.data.visibility == 'public'
+
+        && request.resource.data.signalCount == 0
+        && request.resource.data.uniqueSignalersCount == 0
+        && request.resource.data.signalDistribution is map
+        && request.resource.data.likesCount == 0
+        && request.resource.data.viewsCount == 0
+        && request.resource.data.sharesCount == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.artifactCount == 0
+        && request.resource.data.uniqueArtifactSupportersCount == 0
+
+        && request.resource.data.impactScore is number
+        && request.resource.data.impactScore == 0
+
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
 
     function validOwnerVideoUpdate() {
-      return resource.data.get('uploaderId', '') == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+
+      return resource.data.get('uploaderId', '')
+          == request.auth.uid
+        && changed.hasOnly([
           'description',
           'caption',
           'thumbnailUrl',
@@ -178,18 +293,73 @@ service cloud.firestore {
         && request.resource.data.get('description', '').size() <= 300
         && request.resource.data.get('caption', '') is string
         && request.resource.data.get('caption', '').size() <= 300
+        && request.resource.data.get('description', '')
+          == request.resource.data.get('caption', '')
+        && request.resource.data.get('thumbnailUrl', '') is string
+        && request.resource.data.get('thumbnailUrl', '').size() <= 4096
         && request.resource.data.get('visibility', 'public')
-          in ['public', 'followers_only', 'private']
+          in [
+            'public',
+            'followers_only',
+            'private'
+          ]
+        && request.resource.data.get(
+          'processingStatus',
+          'ready'
+        ) in [
+          'ready',
+          'failed',
+          'rejected',
+          'archived'
+        ]
+        && request.resource.data.get(
+          'status',
+          'ready'
+        ) in [
+          'ready',
+          'failed',
+          'rejected',
+          'archived'
+        ]
         && request.resource.data.updatedAt == request.time;
     }
 
-    // MVP sırasında sayaçlar istemci transaction'larıyla güncellenir. Burada
-    // yalnızca ilgili alanlara ve tek adımlık değişime izin verilir. Bir sonraki
-    // backend paketinde bu sayaçlar Cloud Functions tarafından yönetilecektir.
-    function validSignalAggregateUpdate() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
+    function validSignalAggregateUpdate(videoId) {
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+
       let beforeCount = signalCount(resource.data);
       let afterCount = signalCount(request.resource.data);
+
+      let hadSignal =
+        exists(signalPath(videoId, request.auth.uid))
+        || exists(
+          legacyLikePath(videoId, request.auth.uid)
+        );
+
+      let hasSignal =
+        existsAfter(signalPath(videoId, request.auth.uid))
+        || existsAfter(
+          legacyLikePath(videoId, request.auth.uid)
+        );
+
+      let validTransition =
+        (
+          afterCount == beforeCount + 1
+          && !hadSignal
+          && hasSignal
+        )
+        || (
+          afterCount == beforeCount - 1
+          && hadSignal
+          && !hasSignal
+        )
+        || (
+          afterCount == beforeCount
+          && hadSignal
+          && hasSignal
+        );
 
       return changed.hasAny([
           'signalCount',
@@ -207,47 +377,322 @@ service cloud.firestore {
         && beforeCount is int
         && afterCount is int
         && afterCount >= 0
-        && afterCount >= beforeCount - 1
-        && afterCount <= beforeCount + 1
-        && request.resource.data.get('likesCount', afterCount) == afterCount
-        && request.resource.data.get('uniqueSignalersCount', afterCount)
-          == afterCount
-        && request.resource.data.get('signalDistribution', null) is map
+        && validTransition
+        && request.resource.data.get(
+          'likesCount',
+          afterCount
+        ) == afterCount
+        && request.resource.data.get(
+          'uniqueSignalersCount',
+          afterCount
+        ) == afterCount
+        && request.resource.data.get(
+          'signalDistribution',
+          null
+        ) is map
         && request.resource.data.updatedAt == request.time;
     }
 
     function validCommentAggregateUpdate() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+
       let beforeCount = commentsCount(resource.data);
       let afterCount = commentsCount(request.resource.data);
 
-      return changed.hasOnly(['commentsCount', 'updatedAt'])
-        && changed.hasAny(['updatedAt'])
+      return changed.hasAny(['commentsCount'])
+        && changed.hasOnly([
+          'commentsCount',
+          'updatedAt'
+        ])
         && beforeCount is int
         && afterCount is int
         && afterCount >= 0
-        && afterCount >= beforeCount - 1
-        && afterCount <= beforeCount + 1
-        && request.resource.data.updatedAt == request.time;
+        && (
+          afterCount == beforeCount + 1
+          || afterCount == beforeCount - 1
+        )
+        && (
+          !changed.hasAny(['updatedAt'])
+          || request.resource.data.updatedAt == request.time
+        );
     }
 
     function validShareAggregateUpdate() {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let changed = request.resource.data
+        .diff(resource.data)
+        .affectedKeys();
+
       let beforeCount = sharesCount(resource.data);
       let afterCount = sharesCount(request.resource.data);
 
-      return changed.hasOnly(['sharesCount', 'updatedAt'])
-        && changed.hasAny(['sharesCount'])
+      return changed.hasAny(['sharesCount'])
+        && changed.hasOnly([
+          'sharesCount',
+          'updatedAt'
+        ])
         && beforeCount is int
         && afterCount is int
         && afterCount == beforeCount + 1
+        && (
+          !changed.hasAny(['updatedAt'])
+          || request.resource.data.updatedAt == request.time
+        );
+    }
+
+    function validViewAggregateUpdate(videoId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let beforeCount = resource.data.get('viewsCount', 0);
+      let afterCount = request.resource.data.get('viewsCount', 0);
+
+      return changed.hasOnly([
+          'viewsCount',
+          'updatedAt'
+        ])
+        && beforeCount is int
+        && afterCount is int
+        && beforeCount >= 0
+        && afterCount == beforeCount + 1
+        && !exists(
+          viewPath(
+            videoId,
+            request.auth.uid
+          )
+        )
+        && existsAfter(
+          viewPath(
+            videoId,
+            request.auth.uid
+          )
+        )
+        && request.resource.data.updatedAt
+          == request.time;
+    }
+
+    import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final videoViewServiceProvider = Provider<VideoViewService>((ref) {
+  return VideoViewService(
+    firestore: FirebaseFirestore.instance,
+    auth: FirebaseAuth.instance,
+  );
+});
+
+class VideoViewService {
+  VideoViewService({
+    required FirebaseFirestore firestore,
+    required FirebaseAuth auth,
+  })  : _firestore = firestore,
+        _auth = auth;
+
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
+  static bool isQualified({
+    required int watchedMs,
+    required int durationMs,
+  }) {
+    if (watchedMs <= 0 || durationMs <= 0) {
+      return false;
+    }
+
+    final watchedAtLeastTwoSeconds = watchedMs >= 2000;
+    final watchedAtLeastTwentyPercent = watchedMs * 5 >= durationMs;
+
+    return watchedAtLeastTwoSeconds || watchedAtLeastTwentyPercent;
+  }
+
+  /// true:
+  /// - görüntülenme kaydedildi,
+  /// - önceden kaydedilmişti,
+  /// - kendi videosu olduğu için sayılmayacak.
+  ///
+  /// false:
+  /// - henüz yeterli izlenme oluşmadı.
+  Future<bool> ensureQualifiedViewRecorded({
+    required String videoId,
+    required String uploaderId,
+    required int watchedMs,
+    required int durationMs,
+  }) async {
+    final user = _auth.currentUser;
+    final cleanVideoId = videoId.trim();
+
+    if (user == null || cleanVideoId.isEmpty) {
+      return true;
+    }
+
+    if (uploaderId.trim() == user.uid) {
+      return true;
+    }
+
+    if (!isQualified(
+      watchedMs: watchedMs,
+      durationMs: durationMs,
+    )) {
+      return false;
+    }
+
+    final videoReference = _firestore
+        .collection('videos')
+        .doc(cleanVideoId);
+
+    final viewReference = videoReference
+        .collection('views')
+        .doc(user.uid);
+
+    return _firestore.runTransaction<bool>((transaction) async {
+      final videoSnapshot = await transaction.get(videoReference);
+      final viewSnapshot = await transaction.get(viewReference);
+
+      if (!videoSnapshot.exists) {
+        return true;
+      }
+
+      if (viewSnapshot.exists) {
+        return true;
+      }
+
+      final videoData =
+          videoSnapshot.data() ?? const <String, dynamic>{};
+
+      final storedUploaderId =
+          videoData['uploaderId']?.toString().trim() ?? '';
+
+      if (storedUploaderId == user.uid) {
+        return true;
+      }
+
+      final storedDurationMs = _readPositiveInt(
+        videoData['durationMs'],
+        fallback: durationMs,
+      );
+
+      if (!isQualified(
+        watchedMs: watchedMs,
+        durationMs: storedDurationMs,
+      )) {
+        return false;
+      }
+
+      final currentViewsCount = _readNonNegativeInt(
+        videoData['viewsCount'],
+      );
+
+      final safeWatchedMs = watchedMs
+          .clamp(0, 24 * 60 * 60 * 1000)
+          .toInt();
+
+      final serverTime = FieldValue.serverTimestamp();
+
+      transaction.set(viewReference, <String, dynamic>{
+        'videoId': cleanVideoId,
+        'userId': user.uid,
+        'qualifiedWatchMs': safeWatchedMs,
+        'durationMs': storedDurationMs,
+        'createdAt': serverTime,
+      });
+
+      transaction.update(videoReference, <String, dynamic>{
+        'viewsCount': currentViewsCount + 1,
+        'updatedAt': serverTime,
+      });
+
+      return true;
+    });
+  }
+
+  int _readPositiveInt(
+    Object? value, {
+    required int fallback,
+  }) {
+    final parsed = _readInt(value);
+
+    if (parsed > 0) {
+      return parsed;
+    }
+
+    return fallback > 0 ? fallback : 1;
+  }
+
+  int _readNonNegativeInt(Object? value) {
+    final parsed = _readInt(value);
+    return parsed < 0 ? 0 : parsed;
+  }
+
+  int _readInt(Object? value) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+}
+
+    function validModernCommentCreate(
+      videoId,
+      commentId
+    ) {
+      return request.resource.data.keys().hasOnly([
+          'commentId',
+          'videoId',
+          'userId',
+          'username',
+          'userPhotoUrl',
+          'text',
+          'sticker',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.commentId == commentId
+        && request.resource.data.videoId == videoId
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 80
+        && request.resource.data.userPhotoUrl is string
+        && request.resource.data.userPhotoUrl.size() <= 4096
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 500
+        && request.resource.data.sticker is string
+        && request.resource.data.sticker.size() <= 32
+        && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
+    }
+
+    function validLegacyCommentCreate() {
+      return request.resource.data.keys().hasOnly([
+          'username',
+          'text',
+          'sticker',
+          'createdAt'
+        ])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 80
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 500
+        && request.resource.data.sticker is string
+        && request.resource.data.sticker.size() <= 32
+        && request.resource.data.createdAt == request.time;
     }
 
     match /users/{userId} {
       allow read: if signedIn();
-      allow create: if isOwner(userId) && validUserCreate(userId);
-      allow update: if isOwner(userId) && validUserUpdate(userId);
+
+      allow create: if isOwner(userId)
+        && validUserCreate(userId);
+
+      allow update: if isOwner(userId)
+        && validUserUpdate(userId);
+
       allow delete: if false;
 
       match /savedVideos/{videoId} {
@@ -281,47 +726,104 @@ service cloud.firestore {
             'createdAt',
             'isRead'
           ])
-          && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.type in ['signal', 'comment']
+          && request.resource.data.senderId
+            == request.auth.uid
+          && request.resource.data.type in [
+            'signal',
+            'comment',
+            'follow',
+            'artifact'
+          ]
           && request.resource.data.targetId is string
           && request.resource.data.senderName is string
           && request.resource.data.senderName.size() <= 80
           && request.resource.data.senderAvatar is string
-          && request.resource.data.senderAvatar.size() <= 2048
+          && request.resource.data.senderAvatar.size() <= 4096
           && request.resource.data.message is string
           && request.resource.data.message.size() <= 240
-          && exists(videoPath(request.resource.data.targetId))
-          && get(videoPath(request.resource.data.targetId))
-            .data.get('uploaderId', '') == userId
           && request.resource.data.createdAt == request.time
-          && request.resource.data.isRead == false;
+          && request.resource.data.isRead == false
+          && (
+            (
+              request.resource.data.type in [
+                'signal',
+                'comment',
+                'artifact'
+              ]
+              && exists(
+                videoPath(
+                  request.resource.data.targetId
+                )
+              )
+              && get(
+                videoPath(
+                  request.resource.data.targetId
+                )
+              ).data.get('uploaderId', '') == userId
+            )
+            ||
+            (
+              request.resource.data.type == 'follow'
+              && request.resource.data.targetId == userId
+            )
+          );
 
         allow update: if signedIn()
           && (
             (
               isOwner(userId)
-              && request.resource.data.diff(resource.data)
-                .affectedKeys().hasOnly(['isRead'])
+              && request.resource.data
+                .diff(resource.data)
+                .affectedKeys()
+                .hasOnly(['isRead'])
               && request.resource.data.isRead is bool
             )
             ||
             (
-              resource.data.get('senderId', '') == request.auth.uid
-              && request.resource.data.get('senderId', '') == request.auth.uid
+              resource.data.get('senderId', '')
+                == request.auth.uid
+              && request.resource.data.get('senderId', '')
+                == request.auth.uid
               && request.resource.data.get('targetId', '')
                 == resource.data.get('targetId', '')
               && request.resource.data.get('type', '')
                 == resource.data.get('type', '')
-              && request.resource.data.get('senderName', '') is string
-              && request.resource.data.get('senderName', '').size() <= 80
-              && request.resource.data.get('senderAvatar', '') is string
-              && request.resource.data.get('senderAvatar', '').size() <= 2048
-              && request.resource.data.get('message', '') is string
-              && request.resource.data.get('message', '').size() <= 240
-              && request.resource.data.get('isRead', false) == false
-              && request.resource.data.get('createdAt', null) == request.time
-              && request.resource.data.diff(resource.data)
-                .affectedKeys().hasOnly([
+              && request.resource.data.get(
+                'senderName',
+                ''
+              ) is string
+              && request.resource.data.get(
+                'senderName',
+                ''
+              ).size() <= 80
+              && request.resource.data.get(
+                'senderAvatar',
+                ''
+              ) is string
+              && request.resource.data.get(
+                'senderAvatar',
+                ''
+              ).size() <= 4096
+              && request.resource.data.get(
+                'message',
+                ''
+              ) is string
+              && request.resource.data.get(
+                'message',
+                ''
+              ).size() <= 240
+              && request.resource.data.get(
+                'isRead',
+                false
+              ) == false
+              && request.resource.data.get(
+                'createdAt',
+                null
+              ) == request.time
+              && request.resource.data
+                .diff(resource.data)
+                .affectedKeys()
+                .hasOnly([
                   'senderName',
                   'senderAvatar',
                   'message',
@@ -332,8 +834,11 @@ service cloud.firestore {
           );
 
         allow delete: if isOwner(userId)
-          || (signedIn()
-            && resource.data.get('senderId', '') == request.auth.uid);
+          || (
+            signedIn()
+            && resource.data.get('senderId', '')
+              == request.auth.uid
+          );
       }
     }
 
@@ -349,7 +854,8 @@ service cloud.firestore {
           'updatedAt'
         ])
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.username == '@' + usernameKey
+        && request.resource.data.username
+          == '@' + usernameKey
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
 
@@ -357,30 +863,98 @@ service cloud.firestore {
         && validUsernameKey(usernameKey)
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.username == '@' + usernameKey
+        && request.resource.data.username
+          == '@' + usernameKey
         && request.resource.data.get('createdAt', null)
           == resource.data.get('createdAt', null)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'username',
-          'updatedAt'
-        ])
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'username',
+            'updatedAt'
+          ])
         && request.resource.data.updatedAt == request.time;
 
-      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
     }
 
     match /videos/{videoId} {
       allow read: if signedIn();
-      allow create: if signedIn() && validVideoCreate();
+
+      allow create: if signedIn()
+        && validVideoCreate();
+
       allow update: if signedIn()
-        && (
-          validOwnerVideoUpdate()
-          || validSignalAggregateUpdate()
-          || validCommentAggregateUpdate()
-          || validShareAggregateUpdate()
-        );
+      && (
+        validOwnerVideoUpdate()
+        || validSignalAggregateUpdate(videoId)
+        || validCommentAggregateUpdate()
+        || validShareAggregateUpdate()
+        || validViewAggregateUpdate(videoId)
+      );
+
       allow delete: if signedIn()
-        && resource.data.get('uploaderId', '') == request.auth.uid;
+        && resource.data.get('uploaderId', '')
+          == request.auth.uid;
+
+      match /views/{userId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && exists(videoPath(videoId))
+          && get(videoPath(videoId))
+            .data.get('uploaderId', '') != userId
+
+          && request.resource.data.keys().hasOnly([
+            'videoId',
+            'userId',
+            'qualifiedWatchMs',
+            'durationMs',
+            'createdAt'
+          ])
+
+          && request.resource.data.videoId
+            == videoId
+
+          && request.resource.data.userId
+            == userId
+
+          && request.resource.data.qualifiedWatchMs
+            is int
+
+          && request.resource.data.qualifiedWatchMs
+            > 0
+
+          && request.resource.data.durationMs
+            is int
+
+          && request.resource.data.durationMs
+            > 0
+
+          && (
+            get(videoPath(videoId))
+              .data.get('durationMs', 0) <= 0
+
+            || request.resource.data.durationMs
+              == get(videoPath(videoId))
+                .data.get('durationMs', 0)
+          )
+
+          && (
+            request.resource.data.qualifiedWatchMs
+              >= 2000
+
+            || request.resource.data.qualifiedWatchMs * 5
+              >= request.resource.data.durationMs
+          )
+
+          && request.resource.data.createdAt
+            == request.time;
+
+        allow update, delete: if false;
+      }
 
       match /signals/{userId} {
         allow read: if signedIn();
@@ -407,14 +981,20 @@ service cloud.firestore {
             'artistic',
             'other'
           ]
-          && request.resource.data.get('qualifiedWatchMs', 0) >= 0
+          && request.resource.data.get(
+            'qualifiedWatchMs',
+            0
+          ) >= 0
           && request.resource.data.createdAt == request.time
           && request.resource.data.updatedAt == request.time;
 
         allow update: if isOwner(userId)
-          && request.resource.data.videoId == resource.data.videoId
-          && request.resource.data.userId == resource.data.userId
-          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.videoId
+            == resource.data.videoId
+          && request.resource.data.userId
+            == resource.data.userId
+          && request.resource.data.createdAt
+            == resource.data.createdAt
           && request.resource.data.reason in [
             'learned_something',
             'inspired',
@@ -425,12 +1005,15 @@ service cloud.firestore {
             'artistic',
             'other'
           ]
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'reason',
-            'qualifiedWatchMs',
-            'sessionId',
-            'updatedAt'
-          ])
+          && request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'reason',
+              'qualifiedWatchMs',
+              'sessionId',
+              'updatedAt'
+            ])
           && request.resource.data.updatedAt == request.time;
 
         allow delete: if isOwner(userId);
@@ -440,39 +1023,26 @@ service cloud.firestore {
         allow read: if signedIn();
 
         allow create: if signedIn()
-          && request.resource.data.keys().hasOnly([
-            'commentId',
-            'videoId',
-            'userId',
-            'username',
-            'userPhotoUrl',
-            'text',
-            'sticker',
-            'createdAt',
-            'updatedAt'
-          ])
-          && request.resource.data.commentId == commentId
-          && request.resource.data.videoId == videoId
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.username is string
-          && request.resource.data.username.size() <= 32
-          && request.resource.data.userPhotoUrl is string
-          && request.resource.data.userPhotoUrl.size() <= 2048
-          && request.resource.data.text is string
-          && request.resource.data.text.size() >= 1
-          && request.resource.data.text.size() <= 500
-          && request.resource.data.sticker is string
-          && request.resource.data.sticker.size() <= 16
-          && request.resource.data.createdAt == request.time
-          && request.resource.data.updatedAt == request.time;
+          && (
+            validModernCommentCreate(
+              videoId,
+              commentId
+            )
+            || validLegacyCommentCreate()
+          );
 
         allow delete: if signedIn()
-          && resource.data.get('userId', '') == request.auth.uid;
+          && (
+            resource.data.get('userId', '')
+              == request.auth.uid
+            || get(videoPath(videoId))
+              .data.get('uploaderId', '')
+              == request.auth.uid
+          );
+
         allow update: if false;
       }
 
-      // Eski prototip beğenileri okunur ve kullanıcı kendi kaydını silebilir.
-      // Yeni istemci artık bu koleksiyona kayıt oluşturmaz.
       match /likes/{userId} {
         allow read: if signedIn();
         allow delete: if isOwner(userId);
