@@ -6,13 +6,18 @@ import 'package:hexa/features/auth/application/auth_service.dart';
 
 import '../feed/feed_models.dart';
 import '../settings/settings_screen.dart';
+import 'application/follow_controller.dart';
+import 'data/follow_repository.dart';
 import 'edit_profile_sheet.dart';
+import 'presentation/follow_list_screen.dart';
 import 'profile_model.dart';
 import 'profile_video_viewer_screen.dart';
 import 'profile_widgets.dart';
 import 'unauthenticated_profile_view.dart';
+import 'widgets/profile_state_views.dart';
 import 'widgets/profile_video_tile.dart';
-import 'widgets/sliver_app_bar_delegate.dart';
+import 'widgets/profile_page_chrome.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key, this.userId});
@@ -27,7 +32,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   late String _targetUserId;
@@ -39,11 +43,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _initializeTargetUser();
   }
 
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.userId != widget.userId) {
+      _initializeTargetUser();
+    }
+  }
+
   void _initializeTargetUser() {
     final currentUserId = _auth.currentUser?.uid ?? '';
 
     _targetUserId = widget.userId ?? currentUserId;
-
     _isCurrentUser = _targetUserId == currentUserId;
   }
 
@@ -70,9 +82,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authState = ref.watch(authStateProvider);
 
     return authState.when(
-      loading: () => const _ProfileLoadingView(),
+      loading: () => const ProfileLoadingView(),
       error: (error, stackTrace) {
-        return _ProfileErrorView(message: error.toString());
+        return ProfileErrorView(message: error.toString());
       },
       data: (user) {
         if (user == null && widget.userId == null) {
@@ -90,11 +102,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           stream: _profileStream(),
           builder: (context, profileSnapshot) {
             if (profileSnapshot.connectionState == ConnectionState.waiting) {
-              return const _ProfileLoadingView();
+              return const ProfileLoadingView();
             }
 
             if (profileSnapshot.hasError) {
-              return _ProfileErrorView(
+              return ProfileErrorView(
                 message: profileSnapshot.error.toString(),
               );
             }
@@ -111,15 +123,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildProfile(UserProfileModel profile) {
-    final theme = Theme.of(context);
-
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
+    final followStatus = _isCurrentUser
+        ? null
+        : ref.watch(followStatusProvider(_targetUserId));
+    final followAction = _isCurrentUser
+        ? null
+        : ref.watch(followControllerProvider(_targetUserId));
+    final isFollowing = followStatus?.asData?.value ?? false;
+    final isFollowBusy =
+        (followStatus?.isLoading ?? false) ||
+        (followAction?.isLoading ?? false);
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: profilePageGradient),
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _videosStream(),
         builder: (context, videosSnapshot) {
           if (videosSnapshot.hasError) {
-            return _ProfileErrorView(message: videosSnapshot.error.toString());
+            return ProfileErrorView(message: videosSnapshot.error.toString());
           }
 
           final documents =
@@ -130,76 +150,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               .map(
                 (document) => VideoModel.fromMap(document.data(), document.id),
               )
+              .where((video) => video.isReady)
               .toList(growable: false);
-
-          final postCount = videos.length;
-
-          final totalSignals = videos.fold<int>(0, (total, video) {
-            return total + video.signalCount;
-          });
+          final totalSignals = videos.fold<int>(
+            0,
+            (total, video) => total + video.signalCount,
+          );
 
           return DefaultTabController(
             length: 2,
             child: NestedScrollView(
               headerSliverBuilder: (context, _) {
-                final scheme = Theme.of(context).colorScheme;
+                final canGoBack =
+                    !_isCurrentUser && Navigator.of(context).canPop();
 
                 return [
                   SliverToBoxAdapter(
-                    child: SafeArea(
-                      bottom: false,
-                      child: Column(
-                        children: [
-                          if (_isCurrentUser)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 4,
-                                  right: 8,
-                                ),
-                                child: IconButton(
-                                  tooltip: 'Profil menüsü',
-                                  onPressed: () {
-                                    _showProfileMenu(profile);
-                                  },
-                                  icon: const Icon(Icons.menu_rounded),
-                                ),
-                              ),
-                            ),
-                          ProfileHeader(
-                            user: profile,
-                            postsCount: postCount,
-                            totalLikes: totalSignals,
-                            isCurrentUser: _isCurrentUser,
-                            onEditProfile: () {
-                              _openEditProfile(profile);
-                            },
-                          ),
-                        ],
+                    child: ProfilePageHeader(
+                      profile: profile,
+                      isCurrentUser: _isCurrentUser,
+                      canGoBack: canGoBack,
+                      onMenu: () {
+                        _showProfileMenu(profile);
+                      },
+                      child: ProfileHeader(
+                        user: profile,
+                        postsCount: videos.length,
+                        totalSignals: totalSignals,
+                        followersCount: profile.followersCount,
+                        followingCount: profile.followingCount,
+                        isCurrentUser: _isCurrentUser,
+                        isFollowing: isFollowing,
+                        isFollowBusy: isFollowBusy,
+                        onEditProfile: () {
+                          _openEditProfile(profile);
+                        },
+                        onToggleFollow: () {
+                          _toggleFollow(isFollowing: isFollowing);
+                        },
+                        onFollowersTap: () {
+                          _openFollowList(
+                            profile: profile,
+                            initialType: FollowListType.followers,
+                          );
+                        },
+                        onFollowingTap: () {
+                          _openFollowList(
+                            profile: profile,
+                            initialType: FollowListType.following,
+                          );
+                        },
                       ),
                     ),
                   ),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: SliverAppBarDelegate(
-                      TabBar(
-                        indicatorColor: scheme.primary,
-                        labelColor: scheme.onSurface,
-                        unselectedLabelColor: scheme.onSurfaceVariant,
-                        tabs: const [
-                          Tab(icon: Icon(Icons.grid_view_rounded)),
-                          Tab(icon: Icon(Icons.bookmark_border_rounded)),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const ProfileTabSliver(),
                 ];
               },
               body: TabBarView(
                 children: [
                   _buildVideoGrid(videos),
-                  const _SavedVideosPlaceholder(),
+                  const SavedVideosPlaceholder(),
                 ],
               ),
             ),
@@ -209,12 +219,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _openEditProfile(UserProfileModel profile) {
-    showModalBottomSheet<void>(
+  Future<void> _toggleFollow({required bool isFollowing}) async {
+    if (_isCurrentUser) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(followControllerProvider(_targetUserId).notifier)
+          .toggle(isFollowing: isFollowing);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(followErrorMessage(error))));
+    }
+  }
+
+  void _openFollowList({
+    required UserProfileModel profile,
+    required FollowListType initialType,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return FollowListScreen(
+            userId: profile.uid,
+            username: profile.username,
+            initialType: initialType,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openEditProfile(UserProfileModel profile) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: HexaColors.surface,
+      barrierColor: const Color(0x662F1713),
+      builder: (sheetContext) {
         return EditProfileSheet(user: profile);
       },
     );
@@ -225,6 +275,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       showDragHandle: true,
       useSafeArea: true,
+      backgroundColor: HexaColors.surface,
       builder: (sheetContext) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -238,12 +289,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (context) {
-                        return const SettingsScreen();
-                      },
+                      builder: (context) => const SettingsScreen(),
                     ),
                   );
                 },
@@ -260,11 +308,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ListTile(
                 leading: const Icon(
                   Icons.logout_rounded,
-                  color: Colors.redAccent,
+                  color: HexaColors.error,
                 ),
                 title: const Text(
                   'Hesaptan çık',
-                  style: TextStyle(color: Colors.redAccent),
+                  style: TextStyle(
+                    color: HexaColors.error,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
@@ -280,16 +331,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildVideoGrid(List<VideoModel> videos) {
     if (videos.isEmpty) {
-      return const _EmptyProfileVideos();
+      return const EmptyProfileVideos();
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(2),
+      padding: const EdgeInsets.fromLTRB(
+        HexaSpacing.sm,
+        HexaSpacing.sm,
+        HexaSpacing.sm,
+        110,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.7,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
       ),
       itemCount: videos.length,
       itemBuilder: (context, index) {
@@ -322,88 +378,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             initialIndex: initialIndex,
           );
         },
-      ),
-    );
-  }
-}
-
-class _ProfileLoadingView extends StatelessWidget {
-  const _ProfileLoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: Center(
-        child: CircularProgressIndicator(color: theme.colorScheme.primary),
-      ),
-    );
-  }
-}
-
-class _ProfileErrorView extends StatelessWidget {
-  const _ProfileErrorView({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Profil yüklenemedi.\n$message',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyProfileVideos extends StatelessWidget {
-  const _EmptyProfileVideos();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.videocam_off_outlined,
-            color: scheme.onSurfaceVariant,
-            size: 48,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Henüz bir video yüklenmemiş.',
-            style: TextStyle(color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SavedVideosPlaceholder extends StatelessWidget {
-  const _SavedVideosPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'Kaydedilen videolar yakında burada.',
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }

@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
+import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'feed_repository.dart';
@@ -9,6 +12,8 @@ import 'upload_form_fields.dart';
 import 'upload_service.dart';
 import 'upload_video_preview.dart';
 import 'video_upload_preparer.dart';
+import 'widgets/prepared_video_info.dart';
+import 'widgets/upload_layout_widgets.dart';
 
 class UploadScreen extends ConsumerStatefulWidget {
   const UploadScreen({super.key});
@@ -21,9 +26,7 @@ class UploadScreen extends ConsumerStatefulWidget {
 
 class _UploadScreenState extends ConsumerState<UploadScreen> {
   final TextEditingController _captionController = TextEditingController();
-
   final ImagePicker _picker = ImagePicker();
-
   final VideoUploadPreparer _preparer = const VideoUploadPreparer();
 
   PreparedVideoUpload? _preparedVideo;
@@ -33,6 +36,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   double _progress = 0;
   String _progressMessage = 'Video yükleniyor';
+
+  double? _preparationProgress;
+  String _preparationMessage = 'Video hazırlanıyor';
 
   bool get _isBusy => _isPreparing || _isUploading;
 
@@ -47,16 +53,35 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       return;
     }
 
+    final previousVideo = _preparedVideo;
+
     setState(() {
       _isPreparing = true;
       _preparedVideo = null;
       _progress = 0;
+      _preparationProgress = null;
+      _preparationMessage = 'Video inceleniyor';
     });
 
+    await previousVideo?.deleteTemporaryFile();
+
     try {
-      final prepared = await _preparer.prepare(File(pickedVideo.path));
+      final prepared = await _preparer.prepare(
+        File(pickedVideo.path),
+        onProgress: (progress) {
+          if (!mounted) {
+            return;
+          }
+
+          setState(() {
+            _preparationProgress = progress.value.clamp(0, 1).toDouble();
+            _preparationMessage = progress.message;
+          });
+        },
+      );
 
       if (!mounted) {
+        await prepared.deleteTemporaryFile();
         return;
       }
 
@@ -71,6 +96,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       if (mounted) {
         setState(() {
           _isPreparing = false;
+          _preparationProgress = null;
         });
       }
     }
@@ -100,6 +126,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       _progressMessage = 'Video yükleniyor';
     });
 
+    var uploadSucceeded = false;
+
     try {
       await for (final event
           in ref
@@ -115,11 +143,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         });
       }
 
+      uploadSucceeded = true;
       ref.invalidate(feedControllerProvider);
+
+      await prepared.deleteTemporaryFile();
 
       if (!mounted) {
         return;
       }
+
+      setState(() {
+        _preparedVideo = null;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Video başarıyla yayınlandı.')),
@@ -136,18 +171,26 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           _isUploading = false;
         });
       }
+
+      if (uploadSucceeded) {
+        await prepared.deleteTemporaryFile();
+      }
     }
   }
 
-  void _removeVideo() {
+  Future<void> _removeVideo() async {
     if (_isBusy) {
       return;
     }
+
+    final prepared = _preparedVideo;
 
     setState(() {
       _preparedVideo = null;
       _progress = 0;
     });
+
+    await prepared?.deleteTemporaryFile();
   }
 
   void _showMessage(String message) {
@@ -173,160 +216,95 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   @override
   void dispose() {
     _captionController.dispose();
+    unawaited(_preparer.cancelCompression());
+    unawaited(_preparedVideo?.deleteTemporaryFile());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isPreparing) {
-      return const _BusyUploadView(message: 'Video hazırlanıyor');
+      return BusyUploadView(
+        message: _preparationMessage,
+        progress: _preparationProgress,
+        icon: Icons.video_settings_rounded,
+      );
     }
 
     if (_isUploading) {
-      return _BusyUploadView(message: _progressMessage, progress: _progress);
+      return BusyUploadView(
+        message: _progressMessage,
+        progress: _progress,
+        icon: Icons.cloud_upload_rounded,
+      );
     }
 
     final prepared = _preparedVideo;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        title: const Text('Yeni video'),
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            UploadVideoPreview(
-              videoFile: prepared?.videoFile,
-              onPickVideo: _pickVideo,
-            ),
-            if (prepared != null) ...[
-              const SizedBox(height: 16),
-              _PreparedVideoInfo(video: prepared, onRemove: _removeVideo),
-            ],
-            const SizedBox(height: 24),
-            UploadFormFields(
-              captionController: _captionController,
-              onSubmit: _uploadVideo,
-              isSubmitEnabled: prepared != null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PreparedVideoInfo extends StatelessWidget {
-  const _PreparedVideoInfo({required this.video, required this.onRemove});
-
-  final PreparedVideoUpload video;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = Duration(milliseconds: video.durationMs);
-
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds.remainder(60);
-
-    final sizeMb = video.fileSizeBytes / (1024 * 1024);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: HexaColors.background,
+      body: Stack(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.memory(
-              video.thumbnailBytes,
-              width: 84,
-              height: 112,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
+          const AuthBackground(),
+          SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Video hazır',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                const UploadHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(
+                      HexaSpacing.md,
+                      HexaSpacing.sm,
+                      HexaSpacing.md,
+                      HexaSpacing.xl,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 620),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            UploadSection(
+                              title: 'Videonu seç',
+                              description:
+                                  'Çözünürlüğü korunur ve gerekiyorsa yüklemeden önce sıkıştırılır.',
+                              icon: Icons.video_library_rounded,
+                              child: UploadVideoPreview(
+                                videoFile: prepared?.videoFile,
+                                onPickVideo: _pickVideo,
+                              ),
+                            ),
+                            if (prepared != null) ...[
+                              const SizedBox(height: HexaSpacing.md),
+                              PreparedVideoInfo(
+                                video: prepared,
+                                onRemove: _removeVideo,
+                              ),
+                            ],
+                            const SizedBox(height: HexaSpacing.md),
+                            UploadSection(
+                              title: 'Videonu anlat',
+                              description:
+                                  'İnsanlara videonun neden değerli olduğunu kısa ve açık biçimde anlat.',
+                              icon: Icons.edit_note_rounded,
+                              child: UploadFormFields(
+                                captionController: _captionController,
+                                onSubmit: _uploadVideo,
+                                isSubmitEnabled: prepared != null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text('${sizeMb.toStringAsFixed(1)} MB', style: _metadataStyle),
-                Text(
-                  '$minutes:${seconds.toString().padLeft(2, '0')}',
-                  style: _metadataStyle,
-                ),
-                Text('${video.width} × ${video.height}', style: _metadataStyle),
-                Text(
-                  'Oran: ${video.aspectRatio.toStringAsFixed(3)}',
-                  style: _metadataStyle,
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: onRemove,
-            tooltip: 'Videoyu kaldır',
-            icon: const Icon(Icons.close_rounded, color: Colors.white70),
-          ),
         ],
-      ),
-    );
-  }
-
-  static const TextStyle _metadataStyle = TextStyle(
-    color: Color(0xB3FFFFFF),
-    fontSize: 12,
-    height: 1.55,
-  );
-}
-
-class _BusyUploadView extends StatelessWidget {
-  const _BusyUploadView({required this.message, this.progress});
-
-  final String message;
-  final double? progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final percentage = progress == null ? null : (progress! * 100).round();
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              value: progress,
-              color: const Color(0xFFFB9BBD),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              percentage == null ? message : '$message: %$percentage',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

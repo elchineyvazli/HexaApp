@@ -6,8 +6,9 @@ import 'dart:ui'; // Glassmorphism efekti için
 class MessageModel {
   final String id;
   final String senderId;
-  final String? text;        // Nullable yaptık, çünkü mesaj sadece sticker olabilir
-  final String? stickerPath; // Eğer gönderilen bir sticker ise emojisi/yolu buraya gelecek
+  final String? text; // Nullable yaptık, çünkü mesaj sadece sticker olabilir
+  final String?
+  stickerPath; // Eğer gönderilen bir sticker ise emojisi/yolu buraya gelecek
   final DateTime timestamp;
 
   const MessageModel({
@@ -49,16 +50,35 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Mağazada sergilenecek lüks siberpunk sticker listesi
   final List<StickerItem> _storeStickers = [
-    const StickerItem(id: 'st_neon_crystal', name: 'NEON KRİSTAL', price: '4.99 \$', emoji: '💎', glowColor: Color(0xFF6C5CE7)),
-    const StickerItem(id: 'st_cyber_crown', name: 'SİBER TAÇ', price: '11.99 \$', emoji: '👑', glowColor: Color(0xFFFF5E00)),
-    const StickerItem(id: 'st_plasma_heart', name: 'PLAZMA KALP', price: '29.99 \$', emoji: '❤️‍🔥', glowColor: Colors.pinkAccent),
+    const StickerItem(
+      id: 'st_neon_crystal',
+      name: 'NEON KRİSTAL',
+      price: '4.99 \$',
+      emoji: '💎',
+      glowColor: Color(0xFF6C5CE7),
+    ),
+    const StickerItem(
+      id: 'st_cyber_crown',
+      name: 'SİBER TAÇ',
+      price: '11.99 \$',
+      emoji: '👑',
+      glowColor: Color(0xFFFF5E00),
+    ),
+    const StickerItem(
+      id: 'st_plasma_heart',
+      name: 'PLAZMA KALP',
+      price: '29.99 \$',
+      emoji: '❤️‍🔥',
+      glowColor: Colors.pinkAccent,
+    ),
   ];
 
   final List<MessageModel> _messages = [
     MessageModel(
       id: 'm1',
       senderId: 'other',
-      text: 'Selam! Videomu beğenmene sevindim. Hexa fütürizmi hakkında ne düşünüyorsun?',
+      text:
+          'Selam! Videomu beğenmene sevindim. Hexa fütürizmi hakkında ne düşünüyorsun?',
       timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
     ),
     MessageModel(
@@ -105,19 +125,30 @@ class _ChatScreenState extends State<ChatScreen> {
   void _showStickerStore() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent, // Arkadaki blur efektini görmek için transparan yaptık
+      backgroundColor: Colors
+          .transparent, // Arkadaki blur efektini görmek için transparan yaptık
       isScrollControlled: true,
       builder: (context) {
         return ClipRRect(
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
             child: Container(
               height: MediaQuery.of(context).size.height * 0.45,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFF181926).withOpacity(0.85), // Transparan Frosted Basalt
-                border: Border(top: BorderSide(color: const Color(0xFF6C5CE7).withOpacity(0.3), width: 2)),
+                color: const Color(
+                  0xFF181926,
+                ).withOpacity(0.85), // Transparan Frosted Basalt
+                border: Border(
+                  top: BorderSide(
+                    color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,17 +157,25 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Container(
                       width: 50,
                       height: 5,
-                      decoration: BoxDecoration(color: const Color(0xFF8E92B2).withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8E92B2).withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
                     'HEXA LUXE STORE',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Sticker Ürün Listesi
                   Expanded(
                     child: ListView.builder(
@@ -152,19 +191,44 @@ class _ChatScreenState extends State<ChatScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF0D0E15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: item.glowColor.withOpacity(0.4), width: 1.5),
+                              border: Border.all(
+                                color: item.glowColor.withOpacity(0.4),
+                                width: 1.5,
+                              ),
                               boxShadow: [
-                                BoxShadow(color: item.glowColor.withOpacity(0.1), blurRadius: 10, spreadRadius: 1),
+                                BoxShadow(
+                                  color: item.glowColor.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
                               ],
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(item.emoji, style: const TextStyle(fontSize: 40)),
+                                Text(
+                                  item.emoji,
+                                  style: const TextStyle(fontSize: 40),
+                                ),
                                 const SizedBox(height: 12),
-                                Text(item.name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                                Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(item.price, style: TextStyle(color: item.glowColor, fontSize: 13, fontWeight: FontWeight.w900)),
+                                Text(
+                                  item.price,
+                                  style: TextStyle(
+                                    color: item.glowColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -201,7 +265,11 @@ class _ChatScreenState extends State<ChatScreen> {
             const SizedBox(width: 12),
             Text(
               '@${widget.chatId}',
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -218,7 +286,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 final isMe = message.senderId == 'me';
 
                 return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: isMe
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: message.stickerPath != null
                       ? Container(
                           margin: const EdgeInsets.symmetric(vertical: 8),
@@ -226,24 +296,43 @@ class _ChatScreenState extends State<ChatScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF181926),
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0xFFFF5E00).withOpacity(0.3)),
+                            border: Border.all(
+                              color: const Color(0xFFFF5E00).withOpacity(0.3),
+                            ),
                           ),
-                          child: Text(message.stickerPath!, style: const TextStyle(fontSize: 48)),
+                          child: Text(
+                            message.stickerPath!,
+                            style: const TextStyle(fontSize: 48),
+                          ),
                         )
                       : Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
-                            color: isMe ? const Color(0xFFFF5E00) : const Color(0xFF181926),
+                            color: isMe
+                                ? const Color(0xFFFF5E00)
+                                : const Color(0xFF181926),
                             borderRadius: BorderRadius.circular(16).copyWith(
-                              bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(16),
-                              bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(0),
+                              bottomRight: isMe
+                                  ? const Radius.circular(0)
+                                  : const Radius.circular(16),
+                              bottomLeft: isMe
+                                  ? const Radius.circular(16)
+                                  : const Radius.circular(0),
                             ),
                           ),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
                           child: Text(
                             message.text ?? '',
-                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                 );

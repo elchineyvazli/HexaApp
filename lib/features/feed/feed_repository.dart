@@ -17,12 +17,14 @@ final feedRepositoryProvider = Provider<FeedRepository>((ref) {
 
 final feedControllerProvider =
     StateNotifierProvider.autoDispose<FeedController, FeedState>((ref) {
-  final controller = FeedController(ref.watch(feedRepositoryProvider));
-  controller.loadInitial();
-  return controller;
-});
+      final controller = FeedController(ref.watch(feedRepositoryProvider));
+      controller.loadInitial();
+      return controller;
+    });
 
-final filteredFeedVideosProvider = Provider.autoDispose<List<VideoModel>>((ref) {
+final filteredFeedVideosProvider = Provider.autoDispose<List<VideoModel>>((
+  ref,
+) {
   final videos = ref.watch(
     feedControllerProvider.select((state) => state.videos),
   );
@@ -33,29 +35,27 @@ final filteredFeedVideosProvider = Provider.autoDispose<List<VideoModel>>((ref) 
     return videos;
   }
 
-  return videos.where((video) {
-    switch (type) {
-      case SearchType.video:
-        return video.caption.toLowerCase().contains(rawQuery);
-      case SearchType.user:
-        final cleanQuery = rawQuery.startsWith('@')
-            ? rawQuery.substring(1)
-            : rawQuery;
-        final username = video.username.replaceFirst('@', '').toLowerCase();
-        final displayName = video.uploaderDisplayName.toLowerCase();
-        return username.contains(cleanQuery) ||
-            displayName.contains(cleanQuery);
-      case SearchType.hashtag:
-        final cleanTag = rawQuery.startsWith('#')
-            ? rawQuery
-            : '#$rawQuery';
-        return video.caption.toLowerCase().contains(cleanTag);
-    }
-  }).toList(growable: false);
+  return videos
+      .where((video) {
+        switch (type) {
+          case SearchType.video:
+            return video.caption.toLowerCase().contains(rawQuery);
+          case SearchType.user:
+            final cleanQuery = rawQuery.startsWith('@')
+                ? rawQuery.substring(1)
+                : rawQuery;
+            final username = video.username.replaceFirst('@', '').toLowerCase();
+            final displayName = video.uploaderDisplayName.toLowerCase();
+            return username.contains(cleanQuery) ||
+                displayName.contains(cleanQuery);
+          case SearchType.hashtag:
+            final cleanTag = rawQuery.startsWith('#') ? rawQuery : '#$rawQuery';
+            return video.caption.toLowerCase().contains(cleanTag);
+        }
+      })
+      .toList(growable: false);
 });
 
-/// Eski ekranlar tamamen kaldırılana kadar geriye uyumluluk sağlar.
-/// Yeni [FeedScreen] bu provider yerine [feedControllerProvider] kullanır.
 @Deprecated('feedControllerProvider kullanın.')
 final videosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
@@ -130,76 +130,97 @@ class FeedRepository {
     DocumentSnapshot<Map<String, dynamic>>? after,
     int limit = defaultPageSize,
   }) async {
-    Query<Map<String, dynamic>> query = _videosCollection
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
+    final videos = <VideoModel>[];
+    var cursor = after;
+    var hasMore = true;
+    var scannedPages = 0;
 
-    if (after != null) {
-      query = query.startAfterDocument(after);
+    // En yeni belgeler hâlâ işleniyor olabilir. Hazır video bulana kadar
+    // birkaç ham Firestore sayfasını tarar; böylece boş feed'de takılı kalmaz.
+    while (videos.length < limit && hasMore && scannedPages < 10) {
+      Query<Map<String, dynamic>> query = _videosCollection
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
+
+      if (cursor != null) {
+        query = query.startAfterDocument(cursor);
+      }
+
+      final snapshot = await query.get();
+      scannedPages++;
+
+      if (snapshot.docs.isEmpty) {
+        hasMore = false;
+        break;
+      }
+
+      cursor = snapshot.docs.last;
+      hasMore = snapshot.docs.length == limit;
+
+      for (final document in snapshot.docs) {
+        final video = VideoModel.fromMap(document.data(), document.id);
+        if (_isFeedReady(video)) {
+          videos.add(video);
+          if (videos.length == limit) {
+            break;
+          }
+        }
+      }
     }
 
-    final snapshot = await query.get();
-    final videos = snapshot.docs
-        .map((document) => VideoModel.fromMap(document.data(), document.id))
-        .where((video) {
-      return video.isPubliclyVisible && video.playbackUrl.trim().isNotEmpty;
-    }).toList(growable: false);
-
     return FeedPage(
-      videos: videos,
-      cursor: snapshot.docs.isEmpty ? after : snapshot.docs.last,
-      hasMore: snapshot.docs.length == limit,
+      videos: List<VideoModel>.unmodifiable(videos),
+      cursor: cursor,
+      hasMore: hasMore,
     );
   }
 
-  /// Eski arama ekranları için sınırlı canlı akış.
-  /// Veritabanına demo veri eklemez ve istemciden seed çalıştırmaz.
   Stream<List<Map<String, dynamic>>> getVideos({
     String query = '',
     SearchType type = SearchType.video,
   }) {
     return _videosCollection.limit(50).snapshots().map((snapshot) {
       final normalizedQuery = query.trim().toLowerCase();
-      final documents = snapshot.docs.map((document) {
-        return <String, dynamic>{
-          ...document.data(),
-          'id': document.id,
-        };
-      }).where((data) {
-        final model = VideoModel.fromMap(
-          data,
-          data['id']?.toString() ?? '',
-        );
+      final documents = snapshot.docs
+          .map((document) {
+            return <String, dynamic>{...document.data(), 'id': document.id};
+          })
+          .where((data) {
+            final model = VideoModel.fromMap(
+              data,
+              data['id']?.toString() ?? '',
+            );
 
-        if (!model.isPubliclyVisible || model.playbackUrl.trim().isEmpty) {
-          return false;
-        }
+            if (!_isFeedReady(model)) {
+              return false;
+            }
 
-        if (normalizedQuery.isEmpty) {
-          return true;
-        }
+            if (normalizedQuery.isEmpty) {
+              return true;
+            }
 
-        switch (type) {
-          case SearchType.video:
-            return model.caption.toLowerCase().contains(normalizedQuery);
-          case SearchType.user:
-            final cleanQuery = normalizedQuery.startsWith('@')
-                ? normalizedQuery.substring(1)
-                : normalizedQuery;
-            return model.username
-                    .replaceFirst('@', '')
-                    .toLowerCase()
-                    .contains(cleanQuery) ||
-                model.uploaderDisplayName
-                    .toLowerCase()
-                    .contains(cleanQuery);
-          case SearchType.hashtag:
-            final cleanTag = normalizedQuery.startsWith('#')
-                ? normalizedQuery
-                : '#$normalizedQuery';
-            return model.caption.toLowerCase().contains(cleanTag);
-        }
-      }).toList(growable: false);
+            switch (type) {
+              case SearchType.video:
+                return model.caption.toLowerCase().contains(normalizedQuery);
+              case SearchType.user:
+                final cleanQuery = normalizedQuery.startsWith('@')
+                    ? normalizedQuery.substring(1)
+                    : normalizedQuery;
+                return model.username
+                        .replaceFirst('@', '')
+                        .toLowerCase()
+                        .contains(cleanQuery) ||
+                    model.uploaderDisplayName.toLowerCase().contains(
+                      cleanQuery,
+                    );
+              case SearchType.hashtag:
+                final cleanTag = normalizedQuery.startsWith('#')
+                    ? normalizedQuery
+                    : '#$normalizedQuery';
+                return model.caption.toLowerCase().contains(cleanTag);
+            }
+          })
+          .toList(growable: false);
 
       documents.sort((a, b) {
         final aDate = _readTimestamp(a['createdAt']);
@@ -209,6 +230,12 @@ class FeedRepository {
 
       return documents;
     });
+  }
+
+  bool _isFeedReady(VideoModel video) {
+    return video.isReady &&
+        video.isPubliclyVisible &&
+        video.playbackUrl.trim().isNotEmpty;
   }
 }
 
@@ -277,10 +304,7 @@ class FeedController extends StateNotifier<FeedState> {
 
       _cursor = page.cursor;
       state = state.copyWith(
-        videos: _deduplicate(<VideoModel>[
-          ...state.videos,
-          ...page.videos,
-        ]),
+        videos: _deduplicate(<VideoModel>[...state.videos, ...page.videos]),
         isLoadingMore: false,
         hasMore: page.hasMore,
         error: null,
@@ -290,10 +314,7 @@ class FeedController extends StateNotifier<FeedState> {
         return;
       }
 
-      state = state.copyWith(
-        isLoadingMore: false,
-        error: error,
-      );
+      state = state.copyWith(isLoadingMore: false, error: error);
     }
   }
 

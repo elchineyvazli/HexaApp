@@ -1,41 +1,61 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show Size;
 
-import 'package:video_player/video_player.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import 'upload/video_compression_models.dart';
+import 'upload/video_compression_service.dart';
+import 'upload/video_metadata_reader.dart';
+import 'upload/video_thumbnail_generator.dart';
+import 'video_upload_limits.dart';
 
-class VideoUploadLimits {
-  const VideoUploadLimits._();
+class VideoPreparationProgress {
+  const VideoPreparationProgress({
+    required this.value,
+    required this.message,
+  });
 
-  static const int maxFileSizeBytes = 200 * 1024 * 1024;
-  static const Duration maxDuration = Duration(minutes: 3);
+  final double value;
+  final String message;
 }
 
 class PreparedVideoUpload {
   const PreparedVideoUpload({
+    required this.originalVideoFile,
     required this.videoFile,
     required this.thumbnailBytes,
+    required this.originalFileSizeBytes,
     required this.fileSizeBytes,
     required this.durationMs,
     required this.width,
     required this.height,
+    required this.wasCompressed,
+    required this.targetVideoBitrate,
   });
 
+  final File originalVideoFile;
   final File videoFile;
   final Uint8List thumbnailBytes;
+  final int originalFileSizeBytes;
   final int fileSizeBytes;
   final int durationMs;
   final int width;
   final int height;
+  final bool wasCompressed;
+  final int targetVideoBitrate;
 
-  double get aspectRatio {
-    if (width <= 0 || height <= 0) {
-      return 9 / 16;
+  double get aspectRatio => width / height;
+
+  Future<void> deleteTemporaryFile() async {
+    if (!wasCompressed || originalVideoFile.path == videoFile.path) {
+      return;
     }
 
-    return width / height;
+    try {
+      if (await videoFile.exists()) {
+        await videoFile.delete();
+      }
+    } catch (_) {
+      // Geçici dosya temizleme hatası kullanıcı akışını bozmamalı.
+    }
   }
 }
 
@@ -49,129 +69,190 @@ class VideoPreparationException implements Exception {
 }
 
 class VideoUploadPreparer {
-  const VideoUploadPreparer();
+  const VideoUploadPreparer({
+    this.metadataReader = const VideoMetadataReader(),
+    this.thumbnailGenerator = const VideoThumbnailGenerator(),
+    this.compressionService = const VideoCompressionService(),
+  });
 
-  Future<PreparedVideoUpload> prepare(File videoFile) async {
-    await _validateFile(videoFile);
+  final VideoMetadataReader metadataReader;
+  final VideoThumbnailGenerator thumbnailGenerator;
+  final VideoCompressionService compressionService;
 
-    final fileSizeBytes = await videoFile.length();
-    final metadata = await _readVideoMetadata(videoFile);
-    final thumbnailBytes = await _createThumbnail(
-      videoFile: videoFile,
-      durationMs: metadata.durationMs,
-    );
+  Future<PreparedVideoUpload> prepare(
+    File sourceFile, {
+    void Function(VideoPreparationProgress progress)? onProgress,
+  }) async {
+    final initialStat = await _validateSourceFile(sourceFile);
+    VideoCompressionResult? compression;
 
-    return PreparedVideoUpload(
-      videoFile: videoFile,
-      thumbnailBytes: thumbnailBytes,
-      fileSizeBytes: fileSizeBytes,
-      durationMs: metadata.durationMs,
-      width: metadata.width,
-      height: metadata.height,
-    );
+    try {
+      onProgress?.call(
+        const VideoPreparationProgress(
+          value: 0.02,
+          message: 'Video bilgileri okunuyor',
+        ),
+      );
+
+      final sourceMetadata = await metadataReader.read(sourceFile);
+
+      onProgress?.call(
+        const VideoPreparationProgress(
+          value: 0.08,
+          message: 'Video hazırlanıyor',
+        ),
+      );
+
+      compression = await compressionService.compressIfNeeded(
+        sourceFile: sourceFile,
+        durationMs: sourceMetadata.durationMs,
+        width: sourceMetadata.width,
+        height: sourceMetadata.height,
+        onProgress: (progress) {
+          onProgress?.call(
+            VideoPreparationProgress(
+              value: 0.08 + (progress * 0.78),
+              message: 'Video sıkıştırılıyor',
+            ),
+          );
+        },
+      );
+
+      final preparedFile = compression.outputFile;
+      final preparedMetadata = await metadataReader.read(preparedFile);
+
+      _validatePreservedVideo(
+        sourceDurationMs: sourceMetadata.durationMs,
+        sourceWidth: sourceMetadata.width,
+        sourceHeight: sourceMetadata.height,
+        outputDurationMs: preparedMetadata.durationMs,
+        outputWidth: preparedMetadata.width,
+        outputHeight: preparedMetadata.height,
+      );
+
+      onProgress?.call(
+        const VideoPreparationProgress(
+          value: 0.90,
+          message: 'Kapak görseli hazırlanıyor',
+        ),
+      );
+
+      final thumbnailBytes = await thumbnailGenerator.generate(
+        videoFile: preparedFile,
+        durationMs: preparedMetadata.durationMs,
+      );
+
+      final finalSourceStat = await sourceFile.stat();
+
+      if (finalSourceStat.type != FileSystemEntityType.file ||
+          finalSourceStat.size != initialStat.size ||
+          finalSourceStat.modified != initialStat.modified) {
+        throw const VideoPreparationException(
+          'Video hazırlanırken kaynak dosya değişti. Videoyu yeniden seçmelisin.',
+        );
+      }
+
+      final finalOutputStat = await preparedFile.stat();
+
+      if (finalOutputStat.type != FileSystemEntityType.file ||
+          finalOutputStat.size <= 0 ||
+          finalOutputStat.size > VideoUploadLimits.maxUploadFileSizeBytes) {
+        throw const VideoPreparationException(
+          'Hazırlanan video 40 MB upload sınırına uymuyor.',
+        );
+      }
+
+      onProgress?.call(
+        const VideoPreparationProgress(
+          value: 1,
+          message: 'Video hazır',
+        ),
+      );
+
+      return PreparedVideoUpload(
+        originalVideoFile: sourceFile,
+        videoFile: preparedFile,
+        thumbnailBytes: thumbnailBytes,
+        originalFileSizeBytes: initialStat.size,
+        fileSizeBytes: finalOutputStat.size,
+        durationMs: preparedMetadata.durationMs,
+        width: preparedMetadata.width,
+        height: preparedMetadata.height,
+        wasCompressed: compression.wasCompressed,
+        targetVideoBitrate: compression.targetVideoBitrate,
+      );
+    } on VideoPreparationException {
+      await compression?.deleteTemporaryOutput();
+      rethrow;
+    } on VideoMetadataReadException catch (error) {
+      await compression?.deleteTemporaryOutput();
+      throw VideoPreparationException(error.message);
+    } on VideoThumbnailGenerationException catch (error) {
+      await compression?.deleteTemporaryOutput();
+      throw VideoPreparationException(error.message);
+    } on VideoCompressionException catch (error) {
+      await compression?.deleteTemporaryOutput();
+      throw VideoPreparationException(error.message);
+    } catch (error) {
+      await compression?.deleteTemporaryOutput();
+
+      throw VideoPreparationException(
+        'Video hazırlanamadı: ${_shortError(error)}',
+      );
+    }
   }
 
-  Future<void> _validateFile(File videoFile) async {
-    if (!await videoFile.exists()) {
+  Future<void> cancelCompression() => compressionService.cancel();
+
+  Future<FileStat> _validateSourceFile(File videoFile) async {
+    final path = videoFile.path.trim();
+
+    if (path.isEmpty) {
+      throw const VideoPreparationException(
+        'Geçerli bir video dosyası seçilmedi.',
+      );
+    }
+
+    final stat = await videoFile.stat();
+
+    if (stat.type != FileSystemEntityType.file) {
       throw const VideoPreparationException(
         'Seçilen video dosyası bulunamadı.',
       );
     }
 
-    final fileSizeBytes = await videoFile.length();
-
-    if (fileSizeBytes <= 0) {
+    if (stat.size <= 0) {
       throw const VideoPreparationException('Seçilen video dosyası boş.');
     }
 
-    if (fileSizeBytes > VideoUploadLimits.maxFileSizeBytes) {
-      throw const VideoPreparationException('Video en fazla 200 MB olabilir.');
-    }
-  }
-
-  Future<_VideoMetadata> _readVideoMetadata(File videoFile) async {
-    final controller = VideoPlayerController.file(videoFile);
-
-    try {
-      await controller.initialize();
-
-      final duration = controller.value.duration;
-      final size = controller.value.size;
-
-      _validateDuration(duration);
-      _validateDimensions(size);
-
-      return _VideoMetadata(
-        durationMs: duration.inMilliseconds,
-        width: size.width.round(),
-        height: size.height.round(),
-      );
-    } on VideoPreparationException {
-      rethrow;
-    } catch (error) {
-      throw VideoPreparationException(
-        'Video bilgileri okunamadı: ${_shortError(error)}',
-      );
-    } finally {
-      await controller.dispose();
-    }
-  }
-
-  Future<Uint8List> _createThumbnail({
-    required File videoFile,
-    required int durationMs,
-  }) async {
-    final preferredTimeMs = math.min(1000, math.max(0, durationMs ~/ 4));
-
-    final attempts = <int>[preferredTimeMs, 0];
-
-    for (final timeMs in attempts) {
-      try {
-        final bytes = await VideoThumbnail.thumbnailData(
-          video: videoFile.path,
-          imageFormat: ImageFormat.JPEG,
-          maxWidth: 720,
-          timeMs: timeMs,
-          quality: 85,
-        );
-
-        if (bytes != null && bytes.isNotEmpty) {
-          return bytes;
-        }
-      } catch (_) {
-        // Bir sonraki zaman noktasını dene.
-      }
-    }
-
-    throw const VideoPreparationException(
-      'Video kapak görseli oluşturulamadı.',
-    );
-  }
-
-  void _validateDuration(Duration duration) {
-    if (duration <= Duration.zero) {
-      throw const VideoPreparationException('Videonun süresi okunamadı.');
-    }
-
-    if (duration > VideoUploadLimits.maxDuration) {
+    if (stat.size > VideoUploadLimits.maxSourceFileSizeBytes) {
       throw const VideoPreparationException(
-        'Video en fazla 3 dakika olabilir.',
+        'Kaynak video en fazla 1 GB olabilir.',
       );
     }
+
+    return stat;
   }
 
-  void _validateDimensions(Size size) {
-    if (size.width <= 0 || size.height <= 0) {
+  void _validatePreservedVideo({
+    required int sourceDurationMs,
+    required int sourceWidth,
+    required int sourceHeight,
+    required int outputDurationMs,
+    required int outputWidth,
+    required int outputHeight,
+  }) {
+    if (sourceWidth != outputWidth || sourceHeight != outputHeight) {
       throw const VideoPreparationException(
-        'Videonun genişlik ve yükseklik bilgisi okunamadı.',
+        'Cihaz video çözünürlüğünü koruyamadı. Video yüklenmedi.',
       );
     }
 
-    final aspectRatio = size.width / size.height;
+    final durationDifference = (sourceDurationMs - outputDurationMs).abs();
 
-    if (!aspectRatio.isFinite || aspectRatio < 0.2 || aspectRatio > 5) {
+    if (durationDifference > 1500) {
       throw const VideoPreparationException(
-        'Video görüntü oranı desteklenmiyor.',
+        'Sıkıştırılan videonun süresi kaynak videoyla uyuşmuyor.',
       );
     }
   }
@@ -185,16 +266,4 @@ class VideoUploadPreparer {
 
     return '${text.substring(0, 120)}...';
   }
-}
-
-class _VideoMetadata {
-  const _VideoMetadata({
-    required this.durationMs,
-    required this.width,
-    required this.height,
-  });
-
-  final int durationMs;
-  final int width;
-  final int height;
 }

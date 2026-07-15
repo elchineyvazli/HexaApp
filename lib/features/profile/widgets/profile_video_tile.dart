@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
+
+import 'profile_page_chrome.dart';
 
 class ProfileVideoTile extends StatelessWidget {
   const ProfileVideoTile({
-    super.key,
     required this.thumbnailUrl,
     required this.viewsCount,
     required this.onTap,
+    super.key,
   });
 
   final String thumbnailUrl;
@@ -18,9 +21,15 @@ class ProfileVideoTile extends StatelessWidget {
       button: true,
       label: '${_compactNumber(viewsCount)} görüntülenmeli video',
       child: Material(
-        color: const Color(0xFF1E293B),
+        color: HexaColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HexaRadius.sm),
+          side: const BorderSide(color: profileOrangeBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(HexaRadius.sm),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -29,27 +38,9 @@ class ProfileVideoTile extends StatelessWidget {
               Positioned(
                 left: 7,
                 bottom: 7,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.visibility_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _compactNumber(viewsCount),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        shadows: [Shadow(color: Colors.black87, blurRadius: 5)],
-                      ),
-                    ),
-                  ],
-                ),
+                child: _ViewBadge(value: _compactNumber(viewsCount)),
               ),
+              const Positioned(top: 7, right: 7, child: _PlayBadge()),
             ],
           ),
         ),
@@ -74,7 +65,7 @@ class ProfileVideoTile extends StatelessWidget {
 
         return const _ThumbnailLoading();
       },
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (context, error, stackTrace) {
         return const _ThumbnailPlaceholder();
       },
     );
@@ -105,6 +96,69 @@ class ProfileVideoTile extends StatelessWidget {
   }
 }
 
+class _ViewBadge extends StatelessWidget {
+  const _ViewBadge({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xE6EA580C),
+        borderRadius: BorderRadius.circular(HexaRadius.pill),
+        border: Border.all(color: const Color(0x66FFFFFF)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.visibility_rounded, size: 13, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayBadge extends StatelessWidget {
+  const _PlayBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: const Color(0xF2FFFFFF),
+        shape: BoxShape.circle,
+        border: Border.all(color: profileOrangeBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22EA580C),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.play_arrow_rounded,
+        color: profileOrangeStrong,
+        size: 21,
+      ),
+    );
+  }
+}
+
 class _BottomGradient extends StatelessWidget {
   const _BottomGradient();
 
@@ -116,8 +170,8 @@ class _BottomGradient extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: [0.55, 1],
-            colors: [Colors.transparent, Color(0xB8000000)],
+            stops: [0.43, 1],
+            colors: [Colors.transparent, Color(0xB85A260A)],
           ),
         ),
       ),
@@ -131,14 +185,14 @@ class _ThumbnailLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const ColoredBox(
-      color: Color(0xFF1E293B),
+      color: profileOrangeSoft,
       child: Center(
         child: SizedBox(
-          width: 20,
-          height: 20,
+          width: 22,
+          height: 22,
           child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Color(0xFFFB9BBD),
+            color: profileOrangeStrong,
+            strokeWidth: 2.2,
           ),
         ),
       ),
@@ -157,17 +211,43 @@ class _ThumbnailPlaceholder extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFFB9BBD),
-            Color(0xFFC575B1),
-            Color(0xFF833C69),
-            Color(0xFF601F24),
+            Color(0xFFFFEDD5),
+            Color(0xFFFDBA74),
+            Color(0xFFF97316),
+            Color(0xFFEA580C),
           ],
+          stops: [0, 0.34, 0.7, 1],
         ),
       ),
-      child: Center(
+      child: Center(child: _PlaceholderPlayIcon()),
+    );
+  }
+}
+
+class _PlaceholderPlayIcon extends StatelessWidget {
+  const _PlaceholderPlayIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Color(0xEFFFFFFF),
+        shape: BoxShape.circle,
+        border: Border.fromBorderSide(BorderSide(color: Color(0x99FFFFFF))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x33A33B08),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: 60,
+        height: 60,
         child: Icon(
           Icons.play_arrow_rounded,
-          color: Color(0xD9FFFFFF),
+          color: profileOrangeStrong,
           size: 38,
         ),
       ),

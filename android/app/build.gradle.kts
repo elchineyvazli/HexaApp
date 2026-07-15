@@ -20,11 +20,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.hexa_prod"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Media3 Transformer Android 6 (API 23) ve üzerini destekler.
         minSdk = flutter.minSdkVersion
+        applicationId = "com.example.hexa_prod"
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -32,11 +30,18 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // TODO: Play Store öncesinde gerçek release signing eklenmeli.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    val media3Version = "1.10.1"
+
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-effect:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
 }
 
 flutter {

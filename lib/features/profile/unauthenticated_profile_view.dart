@@ -1,161 +1,392 @@
-// lib/features/profile/unauthenticated_profile_view.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
 import 'package:hexa/features/auth/application/auth_service.dart';
+import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
+import 'package:hexa/features/auth/presentation/widgets/hexagon_logo.dart';
 
 class UnauthenticatedProfileView extends ConsumerStatefulWidget {
   const UnauthenticatedProfileView({super.key});
 
   @override
-  ConsumerState<UnauthenticatedProfileView> createState() => _UnauthenticatedProfileViewState();
+  ConsumerState<UnauthenticatedProfileView> createState() {
+    return _UnauthenticatedProfileViewState();
+  }
 }
 
-class _UnauthenticatedProfileViewState extends ConsumerState<UnauthenticatedProfileView> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLogin = true; // true = Giriş Yap, false = Kaydol
+class _UnauthenticatedProfileViewState
+    extends ConsumerState<UnauthenticatedProfileView> {
   bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
+  String? _errorMessage;
 
   Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
+    if (_isLoading) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       await ref.read(authServiceProvider).signInWithGoogle();
-      // Giriş başarılı olunca Riverpod otomatik olarak ana profil ekranını tetikleyecek!
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint('Profile Google sign-in failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Giriş Hatası: $e'), backgroundColor: const Color(0xFFFF5E00)),
-        );
+        setState(() {
+          _errorMessage = _friendlyAuthMessage(error);
+        });
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  String _friendlyAuthMessage(Object error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'network-request-failed':
+          return 'İnternet bağlantını kontrol edip tekrar dene.';
+        case 'account-exists-with-different-credential':
+          return 'Bu e-posta başka bir giriş yöntemiyle kayıtlı.';
+        case 'user-disabled':
+          return 'Bu hesap devre dışı bırakılmış.';
+        case 'operation-not-allowed':
+          return 'Google girişi şu anda kullanılamıyor.';
+        case 'popup-blocked':
+          return 'Tarayıcı giriş penceresini engelledi.';
+        case 'popup-closed-by-user':
+        case 'cancelled-popup-request':
+          return 'Google giriş penceresi kapatıldı.';
+        default:
+          return 'Google ile giriş tamamlanamadı. Tekrar dene.';
+      }
+    }
+
+    if (error is PlatformException) {
+      switch (error.code) {
+        case 'network_error':
+          return 'İnternet bağlantını kontrol edip tekrar dene.';
+        case 'sign_in_canceled':
+          return 'Google girişi iptal edildi.';
+        case 'sign_in_failed':
+          return 'Google giriş yapılandırması doğrulanamadı.';
+      }
+    }
+
+    return 'Giriş sırasında beklenmeyen bir sorun oluştu.';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF0F172A),
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.person_outline_rounded, size: 80, color: Color(0xFFFF5E00)),
-              const SizedBox(height: 16),
-              Text(
-                _isLogin ? 'Hexa\'ya Giriş Yap' : 'Siber Ağımıza Kaydol',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Profili görüntülemek, video yüklemek ve etkileşime geçmek için bir hesaba ihtiyacın var.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8E92B2), fontSize: 14),
-              ),
-              const SizedBox(height: 32),
-
-              // E-posta Girdi Alanı
-              TextField(
-                controller: _emailController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'E-posta Adresi',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF8E92B2)),
-                  filled: true,
-                  fillColor: const Color(0xFF1E293B),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Şifre Girdi Alanı
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Şifre',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF8E92B2)),
-                  filled: true,
-                  fillColor: const Color(0xFF1E293B),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Giriş Yap / Kaydol Butonu (E-posta için)
-              ElevatedButton(
-                onPressed: _isLoading ? null : () {
-                  // İleride E-posta/Şifre ile giriş/kayıt motoru buraya bağlanacak
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lütfen şimdilik Google ile Giriş Yap butonunu kullanın.')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF5E00),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Text(
-                  _isLogin ? 'GİRİŞ YAP' : 'HESAP OLUŞTUR',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Giriş / Kayıt Modu Değiştirici
-              TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
-                child: Text(
-                  _isLogin ? 'Hesabın yok mu? Hemen Kaydol' : 'Zaten bir hesabın var mı? Giriş Yap',
-                  style: const TextStyle(color: Color(0xFF9D4EDD)),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Ayraç
-              const Row(
-                children: [
-                  Expanded(child: Divider(color: Color(0xFF1E293B))),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('VEYA', style: TextStyle(color: Colors.white38, fontSize: 12))),
-                  Expanded(child: Divider(color: Color(0xFF1E293B))),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Google İle Giriş Butonu
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : _handleGoogleSignIn,
-                icon: _isLoading 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.g_mobiledata, size: 28, color: Color(0xFFFF5E00)),
-                label: const Text('GOOGLE İLE DEVAM ET', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF181926),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFFF5E00), width: 1.5),
+    return Scaffold(
+      backgroundColor: HexaColors.background,
+      body: Stack(
+        children: [
+          const AuthBackground(),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(HexaSpacing.lg),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Container(
+                    padding: const EdgeInsets.all(HexaSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: const Color(0xF7FFFFFF),
+                      borderRadius: BorderRadius.circular(HexaRadius.lg),
+                      border: Border.all(color: HexaColors.border),
+                      boxShadow: HexaShadows.soft,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _ProfileSignInHero(),
+                        const SizedBox(height: HexaSpacing.lg),
+                        AnimatedSwitcher(
+                          duration: HexaMotion.fast,
+                          child: _errorMessage == null
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  key: ValueKey(_errorMessage),
+                                  padding: const EdgeInsets.only(
+                                    bottom: HexaSpacing.md,
+                                  ),
+                                  child: _ProfileAuthError(
+                                    message: _errorMessage!,
+                                  ),
+                                ),
+                        ),
+                        FilledButton(
+                          onPressed: _isLoading ? null : _handleGoogleSignIn,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(58),
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: HexaMotion.fast,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    key: ValueKey('loading'),
+                                    width: 23,
+                                    height: 23,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.3,
+                                    ),
+                                  )
+                                : const Row(
+                                    key: ValueKey('google'),
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _GoogleGlyph(),
+                                      SizedBox(width: 12),
+                                      Text(
+                                        'Google ile devam et',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: HexaSpacing.sm),
+                        const Text(
+                          'Giriş yaptığında profilini, videolarını ve topluluk etkileşimlerini yönetebilirsin.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: HexaColors.inkSoft,
+                            fontSize: 11,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileSignInHero extends StatelessWidget {
+  const _ProfileSignInHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            HexagonLogo(size: 38, showShadow: false),
+            SizedBox(width: 10),
+            Text(
+              'HEXA',
+              style: TextStyle(
+                color: HexaColors.ink,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: HexaSpacing.lg),
+        Container(
+          width: 104,
+          height: 104,
+          decoration: const BoxDecoration(
+            color: HexaColors.signalSoft,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: HexaColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: HexaColors.border),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.person_outline_rounded,
+              size: 39,
+              color: HexaColors.signalStrong,
+            ),
           ),
         ),
+        const SizedBox(height: HexaSpacing.lg),
+        Text(
+          'Profiline ulaşmak için giriş yap',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.6,
+          ),
+        ),
+        const SizedBox(height: HexaSpacing.xs),
+        Text(
+          'Video paylaşmak, Signal vermek, yorum yapmak ve üreticileri takip etmek için Hexa hesabını kullan.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: HexaColors.inkMuted,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: HexaSpacing.md),
+        const Wrap(
+          alignment: WrapAlignment.center,
+          spacing: HexaSpacing.xs,
+          runSpacing: HexaSpacing.xs,
+          children: [
+            _FeatureBadge(
+              icon: Icons.video_library_rounded,
+              label: 'Videolar',
+              background: HexaColors.signalSoft,
+              foreground: HexaColors.signalStrong,
+            ),
+            _FeatureBadge(
+              icon: Icons.favorite_rounded,
+              label: 'Signal',
+              background: HexaColors.surfaceWarm,
+              foreground: HexaColors.signal,
+            ),
+            _FeatureBadge(
+              icon: Icons.people_alt_rounded,
+              label: 'Topluluk',
+              background: HexaColors.mintSoft,
+              foreground: HexaColors.success,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureBadge extends StatelessWidget {
+  const _FeatureBadge({
+    required this.icon,
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(HexaRadius.pill),
+        border: Border.all(color: HexaColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: foreground, size: 15),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoogleGlyph extends StatelessWidget {
+  const _GoogleGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontSize: 16,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAuthError extends StatelessWidget {
+  const _ProfileAuthError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(HexaSpacing.sm),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F0),
+        borderRadius: BorderRadius.circular(HexaRadius.md),
+        border: Border.all(color: const Color(0xFFF7C8C4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: HexaColors.error,
+            size: 20,
+          ),
+          const SizedBox(width: HexaSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: HexaColors.error,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

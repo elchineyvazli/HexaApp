@@ -223,9 +223,9 @@ class _BrandHeader extends StatelessWidget {
         Text(
           'HEXA',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: 3.2,
-              ),
+            fontWeight: FontWeight.w900,
+            letterSpacing: 3.2,
+          ),
         ),
         const Spacer(),
         Container(
@@ -271,10 +271,7 @@ class _SignalHero extends StatelessWidget {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [
-                  Color(0x55FFE9ED),
-                  Color(0x00FFE9ED),
-                ],
+                colors: [Color(0x55FFE9ED), Color(0x00FFE9ED)],
               ),
             ),
           ),
@@ -291,18 +288,12 @@ class _SignalHero extends StatelessWidget {
           Positioned(
             top: compact ? 4 : 8,
             right: compact ? 28 : 64,
-            child: const _FloatingBadge(
-              emoji: '💡',
-              text: 'Öğretici',
-            ),
+            child: const _FloatingBadge(emoji: '💡', text: 'Öğretici'),
           ),
           Positioned(
             left: compact ? 16 : 52,
             bottom: compact ? 0 : 6,
-            child: const _FloatingBadge(
-              emoji: '✨',
-              text: 'İlham',
-            ),
+            child: const _FloatingBadge(emoji: '✨', text: 'İlham'),
           ),
         ],
       ),

@@ -80,9 +80,7 @@ class _SoftOrb extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [innerColor, outerColor],
-          ),
+          gradient: RadialGradient(colors: [innerColor, outerColor]),
         ),
       ),
     );
