@@ -1,75 +1,32 @@
-# Hexa Android cihaz içi video sıkıştırma
+# Hexa Feed Engine V1
 
-## Gerçek durum
+Bu paket yalnızca `lib/features/feed/` içindeki Feed Engine katmanını değiştirir.
+`pubspec.yaml` değişikliği gerektirmez.
 
-Projede thumbnail ve metadata okuma zaten vardı. Eksik olan şey, kaynak videoyu
-Firebase'e göndermeden önce yeniden encode ederek 40 MB sınırına indirmekti.
+## Uygulama
 
-Bu patch:
+Paket içindeki `lib/` klasörünü proje kökündeki `lib/` klasörünün üzerine kopyala.
+Mevcut dosyaların yedeğini veya git commit'ini önceden al.
 
-- `functions/` kullanmaz.
-- TypeScript kullanmaz.
-- Cloud Transcoder kullanmaz.
-- Android cihazda Media3 Transformer kullanır.
-- 360p videoyu 360p, 1080p videoyu 1080p, 4K videoyu 4K tutar.
-- Çözünürlük desteklenmiyorsa gizlice düşürmek yerine hata verir.
-- 40 MB altındaki videoyu yeniden encode etmez.
-- 40 MB üzerindeki videoyu H.264 + AAC MP4 olarak sıkıştırır.
-- İki bitrate denemesi yapar.
-- Nihai dosya 40 MB üstündeyse upload'a izin vermez.
+## Davranış
 
-## Yeni dosyalar
+- Video açıldığında üretici, açıklama, Signal, yorum, kaydetme, paylaşma ve arama arayüzü görünmez.
+- Tek dokunma videoyu oynatır/durdurur; ekranda play/pause ikonu çıkmaz.
+- Çift dokunma Signal gönderir. Daha önce Signal verilmişse kaldırmaz; sadece sayıyı gösterir.
+- Signal sayısı yalnızca çift dokunma sonrası kısa süre görünür.
+- Uzun basma videoyu durdurur ve interaction capsule'ı açar.
+- Capsule üreticiyi, Signal sayısını, yorumları, kaydetmeyi ve paylaşmayı gösterir.
+- Capsule dışına dokunmak capsule'ı kapatır ve video önceden oynuyorsa devam ettirir.
+- Capsule açıkken dikey feed kaydırması kilitlenir.
+- Android geri hareketi önce capsule'ı kapatır.
+- Video görüntülenme eşiği takibi korunur ve ayrı controller dosyasına taşınır.
+- Firestore Signal işlemleri UI dosyasından ayrılmıştır.
 
-- `lib/features/feed/upload/video_compression_models.dart`
-- `lib/features/feed/upload/video_compression_service.dart`
-- `android/app/src/main/kotlin/com/example/hexa_prod/HexaVideoCompressionPlugin.kt`
-- `android/app/src/main/kotlin/com/example/hexa_prod/HexaVideoCompressor.kt`
+## Dosya sınırı
 
-## Değiştirilen dosyalar
+Paket içindeki en uzun Dart dosyası 397 satırdır. Hiçbir Dart dosyası 400 satıra ulaşmaz.
 
-- `lib/features/feed/upload_screen.dart`
-- `lib/features/feed/upload_service.dart`
-- `lib/features/feed/video_upload_preparer.dart`
-- `lib/features/feed/video_upload_validation.dart`
-- `lib/features/feed/video_upload_limits.dart`
-- `android/app/build.gradle.kts`
-- `android/app/src/main/kotlin/com/example/hexa_prod/MainActivity.kt`
+## Not
 
-## Bilerek değiştirilmedi
-
-- `pubspec.yaml`: Yeni Flutter paketi gerekmiyor.
-- `AndroidManifest.xml`: Yeni izin gerekmiyor.
-
-## Henüz uygulanmaması gereken iki güvenlik kuralı
-
-Son `firestore.rules` ve `storage.rules` sürümleri paylaşılmadığı için bu patch
-onları tahmin ederek değiştirmez.
-
-Uygulama çalışmadan önce:
-
-1. Storage video create sınırı 200 MB yerine 40 MB olmalı.
-2. Firestore `sourceSizeBytes` sınırı 40 MB olmalı.
-3. Firestore video create işlemi:
-   - `processingStatus == "ready"`
-   - `status == "ready"`
-   değerlerini kabul etmeli.
-4. Cloud Transcoder alanları zorunlu olmamalı.
-
-## Kurulum
-
-```powershell
-flutter clean
-flutter pub get
-flutter run
-```
-
-Android Gradle ilk derlemede Media3 1.10.1 paketlerini indirecektir.
-
-## Test
-
-- 10 MB video: sıkıştırmadan hazırlanmalı.
-- 80 MB video: sıkıştırılmalı ve 40 MB altında olmalı.
-- 360p video: çözünürlük değişmemeli.
-- 1080p video: çözünürlük değişmemeli.
-- 4K video: cihaz destekliyorsa çözünürlük değişmemeli.
-- Desteklemeyen cihazda açık hata gösterilmeli.
+Bu çalışma ortamında Flutter/Dart SDK bulunmadığı için `flutter analyze` çalıştırılamadı.
+Dosyalar yapısal olarak ve parantez/ayraç dengesi açısından kontrol edildi.
