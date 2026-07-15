@@ -1,14 +1,19 @@
 // lib/features/profile/edit_profile_sheet.dart
-import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:hexa/core/theme/hexa_theme.dart';
+import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
+
 import 'profile_model.dart';
 import 'widgets/avatar_media_station_sheet.dart';
-import 'widgets/cyber_category_selector.dart';
+import 'widgets/edit_profile_avatar_card.dart';
+import 'widgets/edit_profile_form_widgets.dart';
 
 class EditProfileSheet extends StatefulWidget {
-  final UserProfileModel user;
+  const EditProfileSheet({required this.user, super.key});
 
-  const EditProfileSheet({super.key, required this.user});
+  final UserProfileModel user;
 
   @override
   State<EditProfileSheet> createState() => _EditProfileSheetState();
@@ -17,23 +22,27 @@ class EditProfileSheet extends StatefulWidget {
 class _EditProfileSheetState extends State<EditProfileSheet> {
   late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
+
   bool _isLoading = false;
   String? _selectedCategory;
 
-  final List<String> _categories = [
+  static const List<String> _categories = <String>[
     'Video Editor',
     'Streamer',
     'Coder',
     'Gamer',
     'Drone Pilot',
-    'Cyber Nomad'
+    'Cyber Nomad',
   ];
 
   @override
   void initState() {
     super.initState();
+
     _usernameController = TextEditingController(text: widget.user.username);
+
     _bioController = TextEditingController(text: widget.user.bio);
+
     _selectedCategory = 'Coder';
   }
 
@@ -45,185 +54,241 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 
   Future<void> _saveProfile() async {
+    if (_isLoading) {
+      return;
+    }
+
     final newUsername = _usernameController.text.trim();
     final newBio = _bioController.text.trim();
 
-    if (newUsername.isEmpty) return;
+    if (newUsername.isEmpty) {
+      _showMessage('Kullanıcı adı boş bırakılamaz.');
+      return;
+    }
 
-    setState(() => _isLoading = true);
+    if (newBio.length > 160) {
+      _showMessage('Biyografi en fazla 160 karakter olabilir.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.user.uid)
-          .set({
-            'username': newUsername.startsWith('@') ? newUsername : '@$newUsername',
+          .set(<String, dynamic>{
+            'username': newUsername.startsWith('@')
+                ? newUsername
+                : '@$newUsername',
             'bio': newBio,
             'category': _selectedCategory ?? 'Cyber Nomad',
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.of(context).pop();
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata oluştu: $e'), backgroundColor: const Color(0xFFFF5E00)),
-        );
-      }
+    } catch (error) {
+      _showMessage('Profil güncellenemedi: ${_shortError(error)}');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _showAvatarBottomSheet() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AvatarMediaStationSheet(
-        profileImageUrl: widget.user.profileImageUrl,
-        onPickMedia: () {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Galeriden seçim motoru yakında! 🚀')),
-          );
-        },
-      ),
+      builder: (sheetContext) {
+        return AvatarMediaStationSheet(
+          profileImageUrl: widget.user.profileImageUrl,
+          onPickMedia: () {
+            Navigator.of(sheetContext).pop();
+
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Galeriden profil görseli seçme özelliği yakında.',
+                  ),
+                ),
+              );
+          },
+        );
+      },
     );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _shortError(Object error) {
+    final text = error.toString().trim();
+
+    if (text.length <= 140) {
+      return text;
+    }
+
+    return '${text.substring(0, 140)}...';
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      // ⚡ X (Twitter) tarzi aşağı kaydırarak kapatma kalkanı ⚡
-      onVerticalDragUpdate: (details) {
-        if (details.primaryDelta! > 12) Navigator.pop(context);
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.close, color: Colors.white70),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text(
-            'Profili Düzenle',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: TextButton(
-                onPressed: _isLoading ? null : _saveProfile,
-                child: _isLoading
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Color(0xFFFF5E00), strokeWidth: 2))
-                    : const Text('KAYDET', style: TextStyle(color: Color(0xFFFF5E00), fontWeight: FontWeight.w900, letterSpacing: 1)),
-              ),
-            ),
-          ],
+    return PopScope(
+      canPop: !_isLoading,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(HexaRadius.xl),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Scaffold(
+          backgroundColor: HexaColors.background,
+          body: Stack(
             children: [
-              // --- 1. KATMAN: AVATAR & UZUN BASMA ETKİLEŞİMİ ---
-              Center(
-                child: GestureDetector(
-                  onLongPress: _showAvatarBottomSheet,
-                  onTap: _showAvatarBottomSheet,
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFF5E00), width: 2),
-                          boxShadow: [
-                            BoxShadow(color: const Color(0xFFFF5E00).withOpacity(0.25), blurRadius: 15, spreadRadius: 2)
-                          ],
+              const AuthBackground(),
+              SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    EditProfileHeader(
+                      isLoading: _isLoading,
+                      onClose: () {
+                        Navigator.of(context).maybePop();
+                      },
+                      onSave: _saveProfile,
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(
+                          HexaSpacing.md,
+                          HexaSpacing.xs,
+                          HexaSpacing.md,
+                          HexaSpacing.xl,
                         ),
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: const Color(0xFF1E293B),
-                          backgroundImage: widget.user.profileImageUrl.isNotEmpty
-                              ? NetworkImage(widget.user.profileImageUrl)
-                              : null,
-                          child: widget.user.profileImageUrl.isEmpty
-                              ? const Icon(Icons.person, size: 50, color: Colors.white70)
-                              : null,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 620),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                EditProfileAvatarCard(
+                                  imageUrl: widget.user.profileImageUrl,
+                                  username: widget.user.username,
+                                  onTap: _showAvatarBottomSheet,
+                                ),
+                                const SizedBox(height: HexaSpacing.md),
+                                EditProfileSection(
+                                  title: 'Profil bilgileri',
+                                  description:
+                                      'Topluluğun seni nasıl göreceğini düzenle.',
+                                  icon: Icons.person_outline_rounded,
+                                  child: Column(
+                                    children: [
+                                      TextField(
+                                        controller: _usernameController,
+                                        maxLength: 25,
+                                        textInputAction: TextInputAction.next,
+                                        autocorrect: false,
+                                        enableSuggestions: false,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Kullanıcı adı',
+                                          hintText: '@kullaniciadi',
+                                          prefixIcon: Icon(
+                                            Icons.alternate_email_rounded,
+                                          ),
+                                          counterText: '',
+                                        ),
+                                      ),
+                                      const SizedBox(height: HexaSpacing.md),
+                                      TextField(
+                                        controller: _bioController,
+                                        minLines: 3,
+                                        maxLines: 5,
+                                        maxLength: 160,
+                                        textCapitalization:
+                                            TextCapitalization.sentences,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Biyografi',
+                                          hintText:
+                                              'İnsanlara hangi konuda değer katıyorsun?',
+                                          alignLabelWithHint: true,
+                                          prefixIcon: Padding(
+                                            padding: EdgeInsets.only(
+                                              bottom: 72,
+                                            ),
+                                            child: Icon(
+                                              Icons.short_text_rounded,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: HexaSpacing.md),
+                                EditProfileSection(
+                                  title: 'İçerik alanı',
+                                  description:
+                                      'Profilinde öne çıkmasını istediğin alanı seç.',
+                                  icon: Icons.auto_awesome_rounded,
+                                  child: EditProfileCategorySelector(
+                                    categories: _categories,
+                                    selectedCategory: _selectedCategory,
+                                    onSelected: (category) {
+                                      setState(() {
+                                        _selectedCategory = category;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: HexaSpacing.lg),
+                                FilledButton.icon(
+                                  onPressed: _isLoading ? null : _saveProfile,
+                                  icon: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2.2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.check_rounded),
+                                  label: Text(
+                                    _isLoading
+                                        ? 'Kaydediliyor...'
+                                        : 'Değişiklikleri kaydet',
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(56),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF9D4EDD),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 16),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text('Değiştirmek için basılı tut', style: TextStyle(color: Colors.white38, fontSize: 11)),
-              ),
-              const SizedBox(height: 32),
-
-              // --- 2. KATMAN: FORM ALANLARI ---
-              const Text('KULLANICI ADI', style: TextStyle(color: Color(0xFFFF5E00), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _usernameController,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFF181926),
-                  hintText: '@username',
-                  hintStyle: const TextStyle(color: Colors.white24),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFFF5E00), width: 1.5)),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              const Text('BİYOGRAFİ', style: TextStyle(color: Color(0xFF9D4EDD), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _bioController,
-                maxLines: 3,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFF181926),
-                  hintText: 'Siber dünyada yeni bir yolcu...',
-                  hintStyle: const TextStyle(color: Colors.white24),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF9D4EDD), width: 1.5)),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // --- 3. KATMAN: KATEGORİ SEÇİMİ (CYBER PILLS) ---
-              const Text('SİBER KİMLİK KATEGORİSİ', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              const SizedBox(height: 12),
-              CyberCategorySelector(
-                categories: _categories,
-                selectedCategory: _selectedCategory,
-                onCategorySelected: (cat) {
-                  setState(() {
-                    _selectedCategory = cat;
-                  });
-                },
-              ),
-              const SizedBox(height: 40),
             ],
           ),
         ),

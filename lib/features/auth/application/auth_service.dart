@@ -10,9 +10,13 @@ const String _googleServerClientId =
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(
     auth: FirebaseAuth.instance,
-    googleSignIn: GoogleSignIn(
-      serverClientId: kIsWeb ? null : _googleServerClientId,
-    ),
+
+    // Web tarafında GoogleSignIn nesnesini hiç oluşturmuyoruz.
+    // Web girişi FirebaseAuth.signInWithPopup ile yapılacak.
+    googleSignIn: kIsWeb
+        ? null
+        : GoogleSignIn(serverClientId: _googleServerClientId),
+
     userRepository: ref.read(userRepositoryProvider),
   );
 });
@@ -24,14 +28,14 @@ final authStateProvider = StreamProvider<User?>((ref) {
 class AuthService {
   AuthService({
     required FirebaseAuth auth,
-    required GoogleSignIn googleSignIn,
+    required GoogleSignIn? googleSignIn,
     required UserRepository userRepository,
-  })  : _auth = auth,
-        _googleSignIn = googleSignIn,
-        _userRepository = userRepository;
+  }) : _auth = auth,
+       _googleSignIn = googleSignIn,
+       _userRepository = userRepository;
 
   final FirebaseAuth _auth;
-  final GoogleSignIn _googleSignIn;
+  final GoogleSignIn? _googleSignIn;
   final UserRepository _userRepository;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -44,22 +48,27 @@ class AuthService {
     if (kIsWeb) {
       final googleProvider = GoogleAuthProvider()
         ..addScope('email')
-        ..setCustomParameters(
-          const {
-            'prompt': 'select_account',
-          },
-        );
+        ..setCustomParameters(const <String, String>{
+          'prompt': 'select_account',
+        });
 
       userCredential = await _auth.signInWithPopup(googleProvider);
     } else {
-      final googleUser = await _googleSignIn.signIn();
+      final googleSignIn = _googleSignIn;
 
-      // Kullanıcı hesap seçme penceresini kapattıysa bu bir hata değildir.
+      if (googleSignIn == null) {
+        throw StateError('Google Sign-In yerel platform için başlatılamadı.');
+      }
+
+      final googleUser = await googleSignIn.signIn();
+
+      // Kullanıcı hesap seçim penceresini kapattıysa hata değildir.
       if (googleUser == null) {
         return null;
       }
 
       final googleAuthentication = await googleUser.authentication;
+
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuthentication.accessToken,
         idToken: googleAuthentication.idToken,
@@ -69,6 +78,7 @@ class AuthService {
     }
 
     final user = userCredential.user;
+
     if (user == null) {
       throw StateError('Google oturumu kullanıcı bilgisi döndürmedi.');
     }
@@ -76,15 +86,19 @@ class AuthService {
     try {
       await _userRepository.createUserInFirestore(user);
     } catch (_) {
-      // Kullanıcı belgesi oluşturulamadığında yarım bir oturum bırakmayız.
+      // Kullanıcı belgesi oluşturulamadığında yarım oturum bırakmayız.
       await _auth.signOut();
-      if (!kIsWeb) {
+
+      final googleSignIn = _googleSignIn;
+
+      if (googleSignIn != null) {
         try {
-          await _googleSignIn.signOut();
+          await googleSignIn.signOut();
         } catch (error) {
           debugPrint('Google sign-out after setup failure: $error');
         }
       }
+
       rethrow;
     }
 
@@ -92,11 +106,13 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    if (!kIsWeb) {
+    final googleSignIn = _googleSignIn;
+
+    if (googleSignIn != null) {
       try {
-        await _googleSignIn.signOut();
+        await googleSignIn.signOut();
       } catch (error) {
-        // Firebase oturumunun kapanmasını Google SDK hatası engellememeli.
+        // Google SDK hatası Firebase oturumunun kapanmasını engellemez.
         debugPrint('Google sign-out failed: $error');
       }
     }

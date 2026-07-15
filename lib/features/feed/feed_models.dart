@@ -336,11 +336,8 @@ class VideoModel {
       processingStatus != VideoProcessingStatus.rejected &&
       processingStatus != VideoProcessingStatus.archived;
 
-  String get searchableText => <String>[
-        caption,
-        username,
-        uploaderDisplayName,
-      ].join(' ').toLowerCase();
+  String get searchableText =>
+      <String>[caption, username, uploaderDisplayName].join(' ').toLowerCase();
 
   /// Oynatıcı için kullanılabilecek en uygun bağlantı.
   String get playbackUrl {
@@ -348,12 +345,7 @@ class VideoModel {
       return hlsUrl;
     }
 
-    for (final quality in const <String>[
-      '1080p',
-      '720p',
-      '540p',
-      '360p',
-    ]) {
+    for (final quality in const <String>['1080p', '720p', '540p', '360p']) {
       final url = renditionUrls[quality];
 
       if (url != null && url.trim().isNotEmpty) {
@@ -392,39 +384,29 @@ class VideoModel {
 
   bool get hasDimensions => width > 0 && height > 0;
 
-  factory VideoModel.fromMap(
-    Map<String, dynamic> map,
-    String docId,
-  ) {
+  factory VideoModel.fromMap(Map<String, dynamic> map, String docId) {
     final playbackMap = _readDynamicMap(map['playback']);
 
-    final uploaderId = _firstNonEmpty(
-      <Object?>[
-        map['uploaderId'],
-        map['userId'],
-        map['ownerId'],
-      ],
-      fallback: 'unknown_user',
-    );
+    final uploaderId = _firstNonEmpty(<Object?>[
+      map['uploaderId'],
+      map['userId'],
+      map['ownerId'],
+    ], fallback: 'unknown_user');
 
-    final rawUsername = _firstNonEmpty(
-      <Object?>[
-        map['username'],
-        map['handle'],
-        map['userName'],
-      ],
-    );
+    final rawUsername = _firstNonEmpty(<Object?>[
+      map['username'],
+      map['handle'],
+      map['userName'],
+    ]);
 
-    final signalCount = _firstAvailableInt(
-      <Object?>[
-        map['signalCount'],
-        map['signalsCount'],
+    final signalCount = _firstAvailableInt(<Object?>[
+      map['signalCount'],
+      map['signalsCount'],
 
-        // Eski Firestore verileri için geçici geri uyumluluk.
-        map['likesCount'],
-        map['likes'],
-      ],
-    );
+      // Eski Firestore verileri için geçici geri uyumluluk.
+      map['likesCount'],
+      map['likes'],
+    ]);
 
     final renditionUrls = _readStringMap(
       map['renditionUrls'] ??
@@ -435,125 +417,90 @@ class VideoModel {
 
     return VideoModel(
       id: docId,
-      videoUrl: _firstNonEmpty(
-        <Object?>[
-          map['videoUrl'],
-          map['originalVideoUrl'],
-          playbackMap['videoUrl'],
-          playbackMap['originalVideoUrl'],
-        ],
-      ),
-      hlsUrl: _firstNonEmpty(
-        <Object?>[
-          map['hlsUrl'],
-          map['masterPlaylistUrl'],
-          playbackMap['hlsUrl'],
-          playbackMap['masterPlaylistUrl'],
-        ],
-      ),
-      thumbnailUrl: _firstNonEmpty(
-        <Object?>[
-          map['thumbnailUrl'],
-          map['posterUrl'],
-          playbackMap['thumbnailUrl'],
-          playbackMap['posterUrl'],
-        ],
-      ),
+      videoUrl: _firstNonEmpty(<Object?>[
+        map['videoUrl'],
+        map['originalVideoUrl'],
+        playbackMap['videoUrl'],
+        playbackMap['originalVideoUrl'],
+      ]),
+      hlsUrl: _firstNonEmpty(<Object?>[
+        map['hlsUrl'],
+        map['masterPlaylistUrl'],
+        playbackMap['hlsUrl'],
+        playbackMap['masterPlaylistUrl'],
+      ]),
+      thumbnailUrl: _firstNonEmpty(<Object?>[
+        map['thumbnailUrl'],
+        map['posterUrl'],
+        playbackMap['thumbnailUrl'],
+        playbackMap['posterUrl'],
+      ]),
       renditionUrls: renditionUrls,
       username: _normalizeUsername(rawUsername),
-      caption: _firstNonEmpty(
-        <Object?>[
-          map['caption'],
-          map['description'],
-        ],
-      ),
+      caption: _firstNonEmpty(<Object?>[map['caption'], map['description']]),
       uploaderId: uploaderId,
-      uploaderDisplayName: _firstNonEmpty(
-        <Object?>[
-          map['uploaderDisplayName'],
-          map['displayName'],
-          rawUsername,
-        ],
-      ),
-      uploaderAvatarUrl: _firstNonEmpty(
-        <Object?>[
-          map['uploaderAvatarUrl'],
-          map['profileImageUrl'],
-          map['photoUrl'],
-          map['avatarUrl'],
-        ],
-      ),
+      uploaderDisplayName: _firstNonEmpty(<Object?>[
+        map['uploaderDisplayName'],
+        map['displayName'],
+        rawUsername,
+      ]),
+      uploaderAvatarUrl: _firstNonEmpty(<Object?>[
+        map['uploaderAvatarUrl'],
+        map['profileImageUrl'],
+        map['photoUrl'],
+        map['avatarUrl'],
+      ]),
       signalCount: signalCount,
-      uniqueSignalersCount: _firstAvailableInt(
-        <Object?>[
-          map['uniqueSignalersCount'],
-          map['uniqueSignalsCount'],
-          signalCount,
-        ],
-      ),
+      uniqueSignalersCount: _firstAvailableInt(<Object?>[
+        map['uniqueSignalersCount'],
+        map['uniqueSignalsCount'],
+        signalCount,
+      ]),
       signalDistribution: _readIntMap(map['signalDistribution']),
-      viewsCount: _firstAvailableInt(
-        <Object?>[
-          map['viewsCount'],
-          map['viewCount'],
-        ],
-      ),
-      sharesCount: _firstAvailableInt(
-        <Object?>[
-          map['sharesCount'],
-          map['shareCount'],
-        ],
-      ),
-      commentsCount: _firstAvailableInt(
-        <Object?>[
-          map['commentsCount'],
-          map['commentCount'],
-        ],
-      ),
-      artifactCount: _firstAvailableInt(
-        <Object?>[
-          map['artifactCount'],
-          map['artifactsCount'],
-          map['stickerCount'],
-        ],
-      ),
-      uniqueArtifactSupportersCount: _firstAvailableInt(
-        <Object?>[
-          map['uniqueArtifactSupportersCount'],
-          map['artifactSupportersCount'],
-        ],
-      ),
+      viewsCount: _firstAvailableInt(<Object?>[
+        map['viewsCount'],
+        map['viewCount'],
+      ]),
+      sharesCount: _firstAvailableInt(<Object?>[
+        map['sharesCount'],
+        map['shareCount'],
+      ]),
+      commentsCount: _firstAvailableInt(<Object?>[
+        map['commentsCount'],
+        map['commentCount'],
+      ]),
+      artifactCount: _firstAvailableInt(<Object?>[
+        map['artifactCount'],
+        map['artifactsCount'],
+        map['stickerCount'],
+      ]),
+      uniqueArtifactSupportersCount: _firstAvailableInt(<Object?>[
+        map['uniqueArtifactSupportersCount'],
+        map['artifactSupportersCount'],
+      ]),
       impactScore: _readDouble(map['impactScore']),
-      durationMs: _firstAvailableInt(
-        <Object?>[
-          map['durationMs'],
-          playbackMap['durationMs'],
-        ],
-      ),
-      width: _firstAvailableInt(
-        <Object?>[
-          map['width'],
-          map['videoWidth'],
-          playbackMap['width'],
-          playbackMap['videoWidth'],
-        ],
-      ),
-      height: _firstAvailableInt(
-        <Object?>[
-          map['height'],
-          map['videoHeight'],
-          playbackMap['height'],
-          playbackMap['videoHeight'],
-        ],
-      ),
-      storedAspectRatio: _firstAvailableDouble(
-        <Object?>[
-          map['aspectRatio'],
-          map['videoAspectRatio'],
-          playbackMap['aspectRatio'],
-          playbackMap['videoAspectRatio'],
-        ],
-      ),
+      durationMs: _firstAvailableInt(<Object?>[
+        map['durationMs'],
+        playbackMap['durationMs'],
+      ]),
+      width: _firstAvailableInt(<Object?>[
+        map['width'],
+        map['videoWidth'],
+        playbackMap['width'],
+        playbackMap['videoWidth'],
+      ]),
+      height: _firstAvailableInt(<Object?>[
+        map['height'],
+        map['videoHeight'],
+        playbackMap['height'],
+        playbackMap['videoHeight'],
+      ]),
+      storedAspectRatio: _firstAvailableDouble(<Object?>[
+        map['aspectRatio'],
+        map['videoAspectRatio'],
+        playbackMap['aspectRatio'],
+        playbackMap['videoAspectRatio'],
+      ]),
       processingStatus: VideoProcessingStatus.fromValue(
         map['processingStatus'] ?? map['status'],
       ),
@@ -567,9 +514,7 @@ class VideoModel {
   ///
   /// Sayaçlar ve impactScore gibi sunucu tarafından yönetilecek alanlar ancak
   /// [includeServerManagedFields] true verilirse eklenir.
-  Map<String, dynamic> toMap({
-    bool includeServerManagedFields = false,
-  }) {
+  Map<String, dynamic> toMap({bool includeServerManagedFields = false}) {
     final data = <String, dynamic>{
       'schemaVersion': 2,
       'videoUrl': videoUrl,
@@ -578,8 +523,7 @@ class VideoModel {
       'uploaderId': uploaderId,
       if (uploaderDisplayName.isNotEmpty)
         'uploaderDisplayName': uploaderDisplayName,
-      if (uploaderAvatarUrl.isNotEmpty)
-        'uploaderAvatarUrl': uploaderAvatarUrl,
+      if (uploaderAvatarUrl.isNotEmpty) 'uploaderAvatarUrl': uploaderAvatarUrl,
       'processingStatus': processingStatus.value,
       'visibility': visibility.value,
       'durationMs': durationMs,
@@ -648,21 +592,17 @@ class VideoModel {
       username: username ?? this.username,
       caption: caption ?? this.caption,
       uploaderId: uploaderId ?? this.uploaderId,
-      uploaderDisplayName:
-          uploaderDisplayName ?? this.uploaderDisplayName,
+      uploaderDisplayName: uploaderDisplayName ?? this.uploaderDisplayName,
       uploaderAvatarUrl: uploaderAvatarUrl ?? this.uploaderAvatarUrl,
       signalCount: signalCount ?? this.signalCount,
-      uniqueSignalersCount:
-          uniqueSignalersCount ?? this.uniqueSignalersCount,
-      signalDistribution:
-          signalDistribution ?? this.signalDistribution,
+      uniqueSignalersCount: uniqueSignalersCount ?? this.uniqueSignalersCount,
+      signalDistribution: signalDistribution ?? this.signalDistribution,
       viewsCount: viewsCount ?? this.viewsCount,
       sharesCount: sharesCount ?? this.sharesCount,
       commentsCount: commentsCount ?? this.commentsCount,
       artifactCount: artifactCount ?? this.artifactCount,
       uniqueArtifactSupportersCount:
-          uniqueArtifactSupportersCount ??
-          this.uniqueArtifactSupportersCount,
+          uniqueArtifactSupportersCount ?? this.uniqueArtifactSupportersCount,
       impactScore: impactScore ?? this.impactScore,
       durationMs: durationMs ?? this.durationMs,
       width: width ?? this.width,
@@ -707,9 +647,7 @@ class SignalModel {
     return SignalModel(
       videoId: videoId,
       userId: userId,
-      reason:
-          SignalReason.fromValue(map['reason']) ??
-          SignalReason.other,
+      reason: SignalReason.fromValue(map['reason']) ?? SignalReason.other,
       qualifiedWatchMs: _readInt(map['qualifiedWatchMs']),
       sessionId: _readString(map['sessionId']),
       createdAt: _readDateTime(map['createdAt']),
@@ -772,32 +710,17 @@ class ArtifactModel {
 
   bool get isAnimated => animationUrl.trim().isNotEmpty;
 
-  factory ArtifactModel.fromMap(
-    Map<String, dynamic> map,
-    String docId,
-  ) {
+  factory ArtifactModel.fromMap(Map<String, dynamic> map, String docId) {
     return ArtifactModel(
       id: docId,
       name: _readString(map['name'], 'Hexa Artifact'),
       emoji: _readString(map['emoji']),
-      assetUrl: _firstNonEmpty(
-        <Object?>[
-          map['assetUrl'],
-          map['imageUrl'],
-        ],
-      ),
-      animationUrl: _firstNonEmpty(
-        <Object?>[
-          map['animationUrl'],
-          map['lottieUrl'],
-        ],
-      ),
-      coinCost: _firstAvailableInt(
-        <Object?>[
-          map['coinCost'],
-          map['cost'],
-        ],
-      ),
+      assetUrl: _firstNonEmpty(<Object?>[map['assetUrl'], map['imageUrl']]),
+      animationUrl: _firstNonEmpty(<Object?>[
+        map['animationUrl'],
+        map['lottieUrl'],
+      ]),
+      coinCost: _firstAvailableInt(<Object?>[map['coinCost'], map['cost']]),
       rarity: ArtifactRarity.fromValue(map['rarity']),
       isActive: _readBool(map['isActive'], fallback: true),
       discoveryPulseUnits: _readInt(map['discoveryPulseUnits']),
@@ -845,10 +768,7 @@ class StickerModel extends ArtifactModel {
          discoveryPulseUnits: discoveryPulseUnits,
        );
 
-  factory StickerModel.fromMap(
-    Map<String, dynamic> map,
-    String docId,
-  ) {
+  factory StickerModel.fromMap(Map<String, dynamic> map, String docId) {
     final artifact = ArtifactModel.fromMap(map, docId);
 
     return StickerModel(
@@ -875,10 +795,7 @@ String _normalizeUsername(String value) {
   return username.startsWith('@') ? username : '@$username';
 }
 
-String _firstNonEmpty(
-  List<Object?> values, {
-  String fallback = '',
-}) {
+String _firstNonEmpty(List<Object?> values, {String fallback = ''}) {
   for (final value in values) {
     final parsedValue = _readString(value);
 
@@ -925,10 +842,7 @@ int _firstAvailableInt(List<Object?> values) {
   return 0;
 }
 
-String _readString(
-  Object? value, [
-  String fallback = '',
-]) {
+String _readString(Object? value, [String fallback = '']) {
   final parsedValue = value?.toString().trim();
 
   if (parsedValue == null || parsedValue.isEmpty) {
@@ -938,10 +852,7 @@ String _readString(
   return parsedValue;
 }
 
-int _readInt(
-  Object? value, [
-  int fallback = 0,
-]) {
+int _readInt(Object? value, [int fallback = 0]) {
   if (value is int) {
     return value;
   }
@@ -953,10 +864,7 @@ int _readInt(
   return int.tryParse(value?.toString() ?? '') ?? fallback;
 }
 
-double _readDouble(
-  Object? value, [
-  double fallback = 0,
-]) {
+double _readDouble(Object? value, [double fallback = 0]) {
   if (value is double) {
     return value;
   }
@@ -968,10 +876,7 @@ double _readDouble(
   return double.tryParse(value?.toString() ?? '') ?? fallback;
 }
 
-bool _readBool(
-  Object? value, {
-  bool fallback = false,
-}) {
+bool _readBool(Object? value, {bool fallback = false}) {
   if (value is bool) {
     return value;
   }
@@ -1009,10 +914,7 @@ DateTime? _readDateTime(Object? value) {
         ? rawTimestamp * 1000
         : rawTimestamp;
 
-    return DateTime.fromMillisecondsSinceEpoch(
-      milliseconds,
-      isUtc: true,
-    );
+    return DateTime.fromMillisecondsSinceEpoch(milliseconds, isUtc: true);
   }
 
   if (value is String) {
@@ -1029,10 +931,7 @@ Map<String, dynamic> _readDynamicMap(Object? value) {
 
   if (value is Map<Object?, Object?>) {
     return value.map<String, dynamic>(
-      (key, mapValue) => MapEntry<String, dynamic>(
-        key.toString(),
-        mapValue,
-      ),
+      (key, mapValue) => MapEntry<String, dynamic>(key.toString(), mapValue),
     );
   }
 

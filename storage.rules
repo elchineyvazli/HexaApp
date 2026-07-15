@@ -10,13 +10,61 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function isVideoUpload(userId) {
+    function hasUploadMetadata(userId, videoId, assetKind) {
+      return request.resource.metadata.ownerId == userId
+        && request.resource.metadata.videoId == videoId
+        && request.resource.metadata.schemaVersion == '2'
+        && request.resource.metadata.assetKind == assetKind;
+    }
+
+    function validVideoFileName(fileName) {
+      return fileName in [
+        'source.mp4',
+        'source.mov',
+        'source.m4v',
+        'source.webm'
+      ];
+    }
+
+    function validVideoFormat(fileName) {
+      return (
+          fileName == 'source.mp4'
+          && request.resource.contentType == 'video/mp4'
+          && request.resource.metadata.sourceFormat == 'mp4'
+        )
+        || (
+          fileName == 'source.mov'
+          && request.resource.contentType == 'video/quicktime'
+          && request.resource.metadata.sourceFormat == 'mov'
+        )
+        || (
+          fileName == 'source.m4v'
+          && request.resource.contentType == 'video/x-m4v'
+          && request.resource.metadata.sourceFormat == 'm4v'
+        )
+        || (
+          fileName == 'source.webm'
+          && request.resource.contentType == 'video/webm'
+          && request.resource.metadata.sourceFormat == 'webm'
+        );
+    }
+
+    function validVideoUpload(userId, videoId, fileName) {
       return request.resource != null
         && request.resource.size > 0
         && request.resource.size <= 200 * 1024 * 1024
-        && request.resource.contentType != null
-        && request.resource.contentType.matches('video/.*')
-        && request.resource.metadata.ownerId == userId;
+        && validVideoFileName(fileName)
+        && validVideoFormat(fileName)
+        && hasUploadMetadata(userId, videoId, 'videoSource');
+    }
+
+    function validThumbnailUpload(userId, videoId, fileName) {
+      return request.resource != null
+        && fileName == 'cover.jpg'
+        && request.resource.size > 0
+        && request.resource.size <= 8 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg'
+        && hasUploadMetadata(userId, videoId, 'thumbnail');
     }
 
     function isImageUpload(maxBytes) {
@@ -27,11 +75,38 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    match /videos/{userId}/{fileName} {
+    match /videos/{userId}/{videoId}/{fileName} {
       allow read: if signedIn();
-      allow create: if isOwner(userId) && isVideoUpload(userId);
+      allow create: if isOwner(userId)
+        && validVideoUpload(userId, videoId, fileName);
       allow delete: if isOwner(userId);
       allow update: if false;
+    }
+
+    match /thumbnails/{userId}/{videoId}/{fileName} {
+      allow read: if signedIn();
+      allow create: if isOwner(userId)
+        && validThumbnailUpload(userId, videoId, fileName);
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
+    // Bu klasöre yalnızca Transcoder/Admin SDK yazar.
+    match /transcoded/{userId}/{videoId}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /videos/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow delete: if isOwner(userId);
+      allow create, update: if false;
+    }
+
+    match /thumbnails/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow delete: if isOwner(userId);
+      allow create, update: if false;
     }
 
     match /profile_images/{userId}/{fileName} {
@@ -45,13 +120,6 @@ service firebase.storage {
       allow read: if signedIn();
       allow create, update: if isOwner(userId)
         && isImageUpload(5 * 1024 * 1024);
-      allow delete: if isOwner(userId);
-    }
-
-    match /thumbnails/{userId}/{fileName} {
-      allow read: if signedIn();
-      allow create, update: if isOwner(userId)
-        && isImageUpload(8 * 1024 * 1024);
       allow delete: if isOwner(userId);
     }
 
