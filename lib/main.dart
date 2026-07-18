@@ -1,21 +1,21 @@
+import 'dart:ui';
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hexa/core/router/hexa_router.dart';
-import 'package:hexa/core/theme/hexa_theme.dart';
-import 'package:hexa/features/settings/app_settings_controller.dart';
-import 'package:hexa/firebase_options.dart';
+
+import 'app/hexa_app.dart';
+import 'core/theme/hexa_theme.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: HexaColors.surface,
-    ),
-  );
+  _installGlobalErrorHandlers();
+
+  await _configureSystemUi();
 
   try {
     await Firebase.initializeApp(
@@ -27,137 +27,42 @@ Future<void> main() async {
     debugPrint('Firebase initialization failed: $error');
     debugPrintStack(stackTrace: stackTrace);
 
-    runApp(HexaStartupFailureApp(error: error));
+    runApp(HexaStartupFailureApp(error: error, stackTrace: stackTrace));
   }
 }
 
-class HexaApp extends ConsumerWidget {
-  const HexaApp({super.key});
+Future<void> _configureSystemUi() async {
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
-    final settings = ref.watch(appSettingsProvider);
+  await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
+    DeviceOrientation.portraitUp,
+  ]);
 
-    return MaterialApp.router(
-      title: 'Hexa',
-      debugShowCheckedModeBanner: false,
-      theme: settings.lightTheme,
-      darkTheme: settings.darkTheme,
-      themeMode: settings.materialThemeMode,
-      routerConfig: router,
-      builder: (context, child) {
-        final theme = Theme.of(context);
-        final dark = theme.brightness == Brightness.dark;
-
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-            statusBarBrightness: dark ? Brightness.dark : Brightness.light,
-            systemNavigationBarColor: theme.scaffoldBackgroundColor,
-            systemNavigationBarIconBrightness: dark
-                ? Brightness.light
-                : Brightness.dark,
-            systemNavigationBarDividerColor: theme.dividerColor,
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-    );
-  }
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: HexaColors.transparent,
+      systemNavigationBarColor: HexaColors.transparent,
+      systemNavigationBarDividerColor: HexaColors.transparent,
+    ),
+  );
 }
 
-class HexaStartupFailureApp extends StatelessWidget {
-  const HexaStartupFailureApp({required this.error, super.key});
+void _installGlobalErrorHandlers() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
 
-  final Object error;
+    if (kDebugMode) {
+      debugPrintStack(
+        label: details.exceptionAsString(),
+        stackTrace: details.stack,
+      );
+    }
+  };
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Hexa',
-      debugShowCheckedModeBanner: false,
-      theme: HexaTheme.lightTheme,
-      home: Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(HexaSpacing.lg),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Container(
-                  padding: const EdgeInsets.all(HexaSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: HexaColors.surface,
-                    borderRadius: BorderRadius.circular(HexaRadius.lg),
-                    border: Border.all(color: HexaColors.border),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x120B141B),
-                        blurRadius: 32,
-                        offset: Offset(0, 14),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: const BoxDecoration(
-                          color: HexaColors.signalSoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.cloud_off_rounded,
-                          size: 34,
-                          color: HexaColors.signal,
-                        ),
-                      ),
-                      const SizedBox(height: HexaSpacing.lg),
-                      Text(
-                        'Hexa başlatılamadı',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: HexaSpacing.sm),
-                      Text(
-                        'Firebase başlangıç yapılandırması kontrol edilmeli.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: HexaColors.inkMuted,
-                        ),
-                      ),
-                      const SizedBox(height: HexaSpacing.lg),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(HexaSpacing.md),
-                        decoration: BoxDecoration(
-                          color: HexaColors.surfaceMuted,
-                          borderRadius: BorderRadius.circular(HexaRadius.md),
-                          border: Border.all(color: HexaColors.border),
-                        ),
-                        child: SelectableText(
-                          error.toString(),
-                          style: const TextStyle(
-                            color: HexaColors.inkMuted,
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stackTrace) {
+    debugPrint('Unhandled application error: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    return true;
+  };
 }

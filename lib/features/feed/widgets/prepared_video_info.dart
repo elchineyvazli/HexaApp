@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hexa/core/theme/hexa_theme.dart';
 
+import '../../../core/theme/hexa_theme.dart';
 import '../video_upload_preparer.dart';
 
 class PreparedVideoInfo extends StatelessWidget {
@@ -15,145 +15,245 @@ class PreparedVideoInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = Duration(milliseconds: video.durationMs);
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds.remainder(60);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    final originalSizeMb = video.originalFileSizeBytes / (1024 * 1024);
-    final finalSizeMb = video.fileSizeBytes / (1024 * 1024);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey<String>(video.videoFile.path),
+      tween: Tween<double>(begin: reduceMotion ? 1 : 0, end: 1),
+      duration: reduceMotion ? Duration.zero : HexaMotion.slow,
+      curve: HexaMotion.listEnter,
+      builder: (context, value, child) {
+        final double safeValue = value.clamp(0.0, 1.03).toDouble();
 
-    return Container(
-      padding: const EdgeInsets.all(HexaSpacing.sm),
-      decoration: BoxDecoration(
-        color: video.wasCompressed ? HexaColors.mintSoft : HexaColors.surface,
-        borderRadius: BorderRadius.circular(HexaRadius.lg),
-        border: Border.all(
-          color: video.wasCompressed ? HexaColors.mint : HexaColors.border,
+        final double opacity = value.clamp(0.0, 1.0).toDouble();
+
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, 12.0 * (1.0 - safeValue)),
+            child: Transform.scale(
+              scale: 0.97 + (safeValue * 0.03),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: _PreparedVideoSurface(video: video, onRemove: onRemove),
+    );
+  }
+}
+
+class _PreparedVideoSurface extends StatelessWidget {
+  const _PreparedVideoSurface({required this.video, required this.onRemove});
+
+  final PreparedVideoUpload video;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final accent = video.wasCompressed
+        ? HexaColors.success
+        : theme.colorScheme.primary;
+
+    final tintedSurface = Color.alphaBlend(
+      accent.withAlpha(theme.brightness == Brightness.dark ? 24 : 14),
+      theme.colorScheme.surface,
+    );
+
+    return Semantics(
+      container: true,
+      label: video.wasCompressed ? 'Video optimize edildi' : 'Video hazır',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[theme.colorScheme.surface, tintedSurface],
+          ),
+          borderRadius: HexaRadius.borderLg,
+          border: Border.all(color: accent.withAlpha(52)),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(HexaRadius.md),
-            child: Image.memory(
-              video.thumbnailBytes,
-              width: 84,
-              height: 112,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: HexaSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      video.wasCompressed
-                          ? Icons.compress_rounded
-                          : Icons.check_circle_rounded,
-                      color: video.wasCompressed
-                          ? HexaColors.success
-                          : HexaColors.signalStrong,
-                      size: 19,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        video.wasCompressed
-                            ? 'Video sıkıştırıldı'
-                            : 'Video hazır',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
+        child: Padding(
+          padding: const EdgeInsets.all(HexaSpacing.sm),
+          child: Row(
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: HexaRadius.borderMd,
+                child: Image.memory(
+                  video.thumbnailBytes,
+                  width: 66,
+                  height: 88,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  filterQuality: FilterQuality.medium,
                 ),
-                const SizedBox(height: HexaSpacing.sm),
-                if (video.wasCompressed)
-                  Text(
-                    '${originalSizeMb.toStringAsFixed(1)} MB → '
-                    '${finalSizeMb.toStringAsFixed(1)} MB',
-                    style: const TextStyle(
-                      color: HexaColors.success,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  )
-                else
-                  Text(
-                    '${finalSizeMb.toStringAsFixed(1)} MB',
-                    style: const TextStyle(
-                      color: HexaColors.inkMuted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                const SizedBox(height: HexaSpacing.xs),
-                Wrap(
-                  spacing: HexaSpacing.xs,
-                  runSpacing: HexaSpacing.xs,
-                  children: [
-                    _VideoMetric(
-                      icon: Icons.schedule_rounded,
-                      label: '$minutes:${seconds.toString().padLeft(2, '0')}',
-                    ),
-                    _VideoMetric(
-                      icon: Icons.aspect_ratio_rounded,
-                      label: '${video.width} × ${video.height}',
-                    ),
-                    _VideoMetric(
-                      icon: Icons.crop_rounded,
-                      label: video.aspectRatio.toStringAsFixed(3),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: HexaSpacing.sm),
+              Expanded(
+                child: _VideoSummary(video: video, accent: accent),
+              ),
+              const SizedBox(width: HexaSpacing.xs),
+              _RemoveVideoButton(onPressed: onRemove),
+            ],
           ),
-          IconButton(
-            onPressed: onRemove,
-            tooltip: 'Videoyu kaldır',
-            icon: const Icon(Icons.close_rounded, color: HexaColors.inkMuted),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _VideoMetric extends StatelessWidget {
-  const _VideoMetric({required this.icon, required this.label});
+class _VideoSummary extends StatelessWidget {
+  const _VideoSummary({required this.video, required this.accent});
 
-  final IconData icon;
-  final String label;
+  final PreparedVideoUpload video;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xBFFFFFFF),
-        borderRadius: BorderRadius.circular(HexaRadius.pill),
-        border: Border.all(color: HexaColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: HexaColors.inkMuted, size: 14),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: HexaColors.inkMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+    final theme = Theme.of(context);
+
+    final duration = _formatDuration(video.durationMs);
+    final size = _formatBytes(video.fileSizeBytes);
+    final resolution = '${video.width}×${video.height}';
+
+    final savedPercent = (video.savedFraction * 100).round();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: accent,
+                shape: BoxShape.circle,
+                boxShadow: <BoxShadow>[
+                  BoxShadow(color: accent.withAlpha(90), blurRadius: 10),
+                ],
+              ),
+            ),
+            const SizedBox(width: HexaSpacing.xs),
+            Expanded(
+              child: Text(
+                video.wasCompressed ? 'Optimize edildi' : 'Hazır',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: HexaSpacing.xs),
+        Text(
+          '$duration  ·  $resolution',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          video.wasCompressed && savedPercent > 0
+              ? '$size · %$savedPercent daha hafif'
+              : size,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: accent,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(int durationMs) {
+    final duration = Duration(milliseconds: durationMs);
+
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatBytes(int bytes) {
+    const bytesPerMb = 1024 * 1024;
+
+    if (bytes < bytesPerMb) {
+      final kilobytes = bytes / 1024;
+
+      return '${kilobytes.toStringAsFixed(0)} KB';
+    }
+
+    final megabytes = bytes / bytesPerMb;
+
+    return '${megabytes.toStringAsFixed(1)} MB';
+  }
+}
+
+class _RemoveVideoButton extends StatefulWidget {
+  const _RemoveVideoButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  State<_RemoveVideoButton> createState() {
+    return _RemoveVideoButtonState();
+  }
+}
+
+class _RemoveVideoButtonState extends State<_RemoveVideoButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: true,
+      label: 'Videoyu kaldır',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          setState(() => _pressed = true);
+        },
+        onTapCancel: () {
+          setState(() => _pressed = false);
+        },
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onPressed();
+        },
+        child: AnimatedScale(
+          scale: _pressed ? HexaMotion.pressScale : 1,
+          duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+          curve: HexaMotion.elastic,
+          child: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withAlpha(190),
+              shape: BoxShape.circle,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Icon(
+              Icons.close_rounded,
+              size: 19,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        ],
+        ),
       ),
     );
   }

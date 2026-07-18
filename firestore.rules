@@ -36,23 +36,73 @@ service cloud.firestore {
       return data.get('signalCount', data.get('likesCount', 0));
     }
     function validUserCreate(userId) {
-      return request.resource.data.keys().hasOnly([
-          'uid', 'email', 'username', 'usernameKey', 'displayName',
-          'photoUrl', 'profileImageUrl', 'bio', 'followersCount',
-          'followingCount', 'isProfileCompleted', 'authProvider',
-          'schemaVersion', 'createdAt', 'updatedAt', 'lastSignInAt'
-        ]) && request.resource.data.uid == userId && request.resource.data.get('username', '') == '' && request.resource.data.get('usernameKey', '') == '' && request.resource.data.get('displayName', '') is string && request.resource.data.get('displayName', '').size() <= 40 && request.resource.data.get('bio', '') is string && request.resource.data.get('bio', '').size() <= 160 && request.resource.data.get('followersCount', 0) == 0 && request.resource.data.get('followingCount', 0) == 0 && request.resource.data.get('isProfileCompleted', false) == false && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time && request.resource.data.lastSignInAt == request.time;
-    }
+  return request.resource.data.keys().hasOnly([
+      'uid',
+      'email',
+      'emailVerified',
+      'isAnonymous',
+      'username',
+      'usernameKey',
+      'displayName',
+      'photoUrl',
+      'profileImageUrl',
+      'bio',
+      'followersCount',
+      'followingCount',
+      'isProfileCompleted',
+      'authProvider',
+      'authProviders',
+      'schemaVersion',
+      'createdAt',
+      'updatedAt',
+      'lastSignInAt'
+    ])
+    && request.resource.data.uid == userId
+    && request.resource.data.get('email', '') is string
+    && request.resource.data.emailVerified is bool
+    && request.resource.data.isAnonymous is bool
+    && request.resource.data.authProvider is string
+    && request.resource.data.authProviders is list
+    && request.resource.data.get('username', '') == ''
+    && request.resource.data.get('usernameKey', '') == ''
+    && request.resource.data.get('displayName', '') is string
+    && request.resource.data.get('displayName', '').size() <= 40
+    && request.resource.data.get('bio', '') is string
+    && request.resource.data.get('bio', '').size() <= 160
+    && request.resource.data.get('followersCount', 0) == 0
+    && request.resource.data.get('followingCount', 0) == 0
+    && request.resource.data.get('isProfileCompleted', false) == false
+    && request.resource.data.createdAt == request.time
+    && request.resource.data.updatedAt == request.time
+    && request.resource.data.lastSignInAt == request.time;
+}
     function validUserUpdate(userId) {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let usernameChanged = changed.hasAny(['username', 'usernameKey']);
       let usernameKey = request.resource.data.get('usernameKey', '');
       let validReservation = validUsernameKey(usernameKey) && request.resource.data.get('username', '') == '@' + usernameKey && existsAfter(usernamePath(usernameKey)) && getAfter(usernamePath(usernameKey)).data.uid == userId;
       return changed.hasOnly([
-          'uid', 'email', 'username', 'usernameKey', 'displayName', 'bio',
-          'category', 'photoUrl', 'profileImageUrl', 'isProfileCompleted',
-          'authProvider', 'schemaVersion', 'updatedAt', 'lastSignInAt'
-        ]) && request.resource.data.get('uid', userId) == userId && resource.data.get('uid', userId) == userId && request.resource.data.get('displayName', '') is string && request.resource.data.get('displayName', '').size() <= 40 && request.resource.data.get('bio', '') is string && request.resource.data.get('bio', '').size() <= 160 && (!usernameChanged || validReservation);
+  'uid',
+  'email',
+  'emailVerified',
+  'isAnonymous',
+  'username',
+  'usernameKey',
+  'displayName',
+  'bio',
+  'category',
+  'photoUrl',
+  'profileImageUrl',
+  'isProfileCompleted',
+  'authProvider',
+  'authProviders',
+  'schemaVersion',
+  'updatedAt',
+  'lastSignInAt'
+])  && request.resource.data.emailVerified is bool
+&& request.resource.data.isAnonymous is bool
+&& request.resource.data.authProvider is string
+&& request.resource.data.authProviders is list&& request.resource.data.get('uid', userId) == userId && resource.data.get('uid', userId) == userId && request.resource.data.get('displayName', '') is string && request.resource.data.get('displayName', '').size() <= 40 && request.resource.data.get('bio', '') is string && request.resource.data.get('bio', '').size() <= 160 && (!usernameChanged || validReservation);
     }
     function validMutation(mutation, actorId, targetId, operation) {
       return mutation is map && mutation.keys().hasOnly(['id', 'actorId', 'targetId', 'operation']) && mutation.get('id', '') is string && mutation.get('id', '').size() >= 8 && mutation.get('id', '').size() <= 256 && mutation.get('actorId', '') == actorId && mutation.get('targetId', '') == targetId && mutation.get('operation', '') == operation && actorId != targetId;

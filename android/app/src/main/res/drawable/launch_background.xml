@@ -1,12 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Hexa'nın bütün temalarında ortak, sakin başlangıç çekirdeği. -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FF140C11" />
+        </shape>
+    </item>
+
+    <!-- Logonun arkasındaki statik Hope aura. -->
+    <item
+        android:width="152dp"
+        android:height="152dp"
+        android:gravity="center">
+
+        <shape android:shape="oval">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="76dp"
+                android:startColor="#55FB9BBD"
+                android:centerColor="#22B15090"
+                android:endColor="#00B15090" />
+        </shape>
+
+    </item>
+
+    <!-- Uzun animasyon native tarafta değil, Flutter Startup ekranında çalışır. -->
+    <item
+        android:width="88dp"
+        android:height="88dp"
+        android:gravity="center"
+        android:drawable="@mipmap/ic_launcher" />
+
 </layer-list>

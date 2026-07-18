@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,8 @@ import '../../core/theme/hexa_theme.dart';
 
 enum HexaAppMode { original, lite }
 
+/// `green`, eski kayıtları ve mevcut ekran referanslarını geçici olarak
+/// kırmamak için tutulur. Yeni Settings ekranında gösterilmeyecektir.
 enum HexaThemePreference { system, light, dark, green }
 
 @immutable
@@ -18,34 +21,41 @@ class AppSettingsState {
     this.isBusy = false,
     this.appMode = HexaAppMode.original,
     this.themePreference = HexaThemePreference.system,
+    this.ambientMusicEnabled = true,
+    this.reduceMotion = false,
+    this.errorMessage,
   });
 
   final bool isLoaded;
   final bool isBusy;
+
   final HexaAppMode appMode;
   final HexaThemePreference themePreference;
 
+  final bool ambientMusicEnabled;
+  final bool reduceMotion;
+
+  final String? errorMessage;
+
   bool get isLite => appMode == HexaAppMode.lite;
 
-  /// Lite modunda komşu videoları hazırlamayacağız.
+  /// Lite modunda komşu videolar belleğe hazırlanmaz.
   bool get preloadAdjacentVideos => !isLite;
 
-  /// Lite modunda ağır Artefakt animasyonları yerine statik içerik gösterilir.
-  bool get allowAnimatedArtifacts => !isLite;
+  /// Hem Lite modu hem erişilebilirlik tercihi ağır hareketleri kapatabilir.
+  bool get allowAnimatedArtifacts => !isLite && !reduceMotion;
 
-  /// Lite modunda lo-fi kütüphanesi ve indirmeleri yüklenmez.
-  bool get allowBackgroundMusic => !isLite;
+  /// Ambient ses; Lite modu veya kullanıcı tercihiyle kapanabilir.
+  bool get allowBackgroundMusic {
+    return !isLite && ambientMusicEnabled;
+  }
 
-  /// Lite modunda ağır grafik ve gelişmiş analiz sayfaları gizlenir.
   bool get showAdvancedAnalytics => !isLite;
 
-  /// Bu değer sonraki adımda video oynatıcıya bağlanacak.
   int get preferredMobileVideoHeight => isLite ? 540 : 720;
 
-  /// Bu değer sonraki adımda medya önbelleğine bağlanacak.
   int get cacheLimitMb => isLite ? 120 : 500;
 
-  /// Backend işlemleri Lite modunda da çalışmaya devam eder.
   bool get processSignals => true;
   bool get processComments => true;
   bool get processFollows => true;
@@ -57,12 +67,19 @@ class AppSettingsState {
     bool? isBusy,
     HexaAppMode? appMode,
     HexaThemePreference? themePreference,
+    bool? ambientMusicEnabled,
+    bool? reduceMotion,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return AppSettingsState(
       isLoaded: isLoaded ?? this.isLoaded,
       isBusy: isBusy ?? this.isBusy,
       appMode: appMode ?? this.appMode,
       themePreference: themePreference ?? this.themePreference,
+      ambientMusicEnabled: ambientMusicEnabled ?? this.ambientMusicEnabled,
+      reduceMotion: reduceMotion ?? this.reduceMotion,
+      errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -70,7 +87,9 @@ class AppSettingsState {
 final appSettingsProvider =
     StateNotifierProvider<AppSettingsController, AppSettingsState>((ref) {
       final controller = AppSettingsController();
+
       unawaited(controller.load());
+
       return controller;
     });
 
@@ -78,12 +97,20 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
   AppSettingsController() : super(const AppSettingsState());
 
   static const String _appModeKey = 'hexa_app_mode';
-
   static const String _themePreferenceKey = 'hexa_theme_preference';
+  static const String _ambientMusicEnabledKey = 'hexa_ambient_music_enabled';
+  static const String _reduceMotionKey = 'hexa_reduce_motion';
 
-  Future<void> load() async {
+  SharedPreferences? _preferences;
+  Future<void>? _loadOperation;
+
+  Future<void> load() {
+    return _loadOperation ??= _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _getPreferences();
 
       final appMode = _parseAppMode(preferences.getString(_appModeKey));
 
@@ -91,16 +118,30 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
         preferences.getString(_themePreferenceKey),
       );
 
+      final ambientMusicEnabled =
+          preferences.getBool(_ambientMusicEnabledKey) ?? true;
+
+      final reduceMotion = preferences.getBool(_reduceMotionKey) ?? false;
+
       state = state.copyWith(
         isLoaded: true,
         appMode: appMode,
         themePreference: themePreference,
+        ambientMusicEnabled: ambientMusicEnabled,
+        reduceMotion: reduceMotion,
+        clearError: true,
       );
     } catch (error, stackTrace) {
-      debugPrint('Ayarlar yüklenemedi: $error');
-      debugPrintStack(stackTrace: stackTrace);
+      _logFailure(
+        message: 'Ayarlar yüklenemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
 
-      state = state.copyWith(isLoaded: true);
+      state = state.copyWith(
+        isLoaded: true,
+        errorMessage: 'Ayarların bir bölümü yüklenemedi.',
+      );
     }
   }
 
@@ -109,25 +150,29 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
       return;
     }
 
-    state = state.copyWith(isBusy: true);
+    state = state.copyWith(isBusy: true, clearError: true);
 
     try {
       if (mode == HexaAppMode.lite) {
         await _clearTemporaryFilesInternal();
       }
 
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _getPreferences();
 
       await preferences.setString(_appModeKey, mode.name);
 
       state = state.copyWith(appMode: mode, isBusy: false);
     } catch (error, stackTrace) {
-      debugPrint('Hexa modu değiştirilemedi: $error');
-      debugPrintStack(stackTrace: stackTrace);
+      _logFailure(
+        message: 'Hexa modu değiştirilemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
 
-      state = state.copyWith(isBusy: false);
-
-      rethrow;
+      state = state.copyWith(
+        isBusy: false,
+        errorMessage: 'Hexa modu şu anda değiştirilemiyor.',
+      );
     }
   }
 
@@ -136,15 +181,79 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
       return;
     }
 
-    state = state.copyWith(themePreference: preference);
+    final previousPreference = state.themePreference;
+
+    state = state.copyWith(themePreference: preference, clearError: true);
 
     try {
-      final preferences = await SharedPreferences.getInstance();
+      final preferences = await _getPreferences();
 
       await preferences.setString(_themePreferenceKey, preference.name);
     } catch (error, stackTrace) {
-      debugPrint('Tema tercihi kaydedilemedi: $error');
-      debugPrintStack(stackTrace: stackTrace);
+      _logFailure(
+        message: 'Tema tercihi kaydedilemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      state = state.copyWith(
+        themePreference: previousPreference,
+        errorMessage: 'Tema tercihi kaydedilemedi.',
+      );
+    }
+  }
+
+  Future<void> setAmbientMusicEnabled(bool enabled) async {
+    if (enabled == state.ambientMusicEnabled) {
+      return;
+    }
+
+    final previousValue = state.ambientMusicEnabled;
+
+    state = state.copyWith(ambientMusicEnabled: enabled, clearError: true);
+
+    try {
+      final preferences = await _getPreferences();
+
+      await preferences.setBool(_ambientMusicEnabledKey, enabled);
+    } catch (error, stackTrace) {
+      _logFailure(
+        message: 'Ambient müzik tercihi kaydedilemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      state = state.copyWith(
+        ambientMusicEnabled: previousValue,
+        errorMessage: 'Müzik tercihi kaydedilemedi.',
+      );
+    }
+  }
+
+  Future<void> setReduceMotion(bool enabled) async {
+    if (enabled == state.reduceMotion) {
+      return;
+    }
+
+    final previousValue = state.reduceMotion;
+
+    state = state.copyWith(reduceMotion: enabled, clearError: true);
+
+    try {
+      final preferences = await _getPreferences();
+
+      await preferences.setBool(_reduceMotionKey, enabled);
+    } catch (error, stackTrace) {
+      _logFailure(
+        message: 'Hareket tercihi kaydedilemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      state = state.copyWith(
+        reduceMotion: previousValue,
+        errorMessage: 'Hareket tercihi kaydedilemedi.',
+      );
     }
   }
 
@@ -153,25 +262,43 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
       return;
     }
 
-    state = state.copyWith(isBusy: true);
+    state = state.copyWith(isBusy: true, clearError: true);
 
     try {
       await _clearTemporaryFilesInternal();
-    } finally {
+
       state = state.copyWith(isBusy: false);
+    } catch (error, stackTrace) {
+      _logFailure(
+        message: 'Geçici dosyalar temizlenemedi.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      state = state.copyWith(
+        isBusy: false,
+        errorMessage: 'Geçici dosyalar temizlenemedi.',
+      );
     }
   }
 
-  Future<void> _clearTemporaryFilesInternal() async {
-    try {
-      await DefaultCacheManager().emptyCache();
-
-      PaintingBinding.instance.imageCache.clear();
-      PaintingBinding.instance.imageCache.clearLiveImages();
-    } catch (error, stackTrace) {
-      debugPrint('Geçici dosyalar temizlenemedi: $error');
-      debugPrintStack(stackTrace: stackTrace);
+  void clearError() {
+    if (state.errorMessage == null) {
+      return;
     }
+
+    state = state.copyWith(clearError: true);
+  }
+
+  Future<SharedPreferences> _getPreferences() async {
+    return _preferences ??= await SharedPreferences.getInstance();
+  }
+
+  Future<void> _clearTemporaryFilesInternal() async {
+    await DefaultCacheManager().emptyCache();
+
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
   }
 
   HexaAppMode _parseAppMode(String? value) {
@@ -185,6 +312,11 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
   }
 
   HexaThemePreference _parseThemePreference(String? value) {
+    // Eski yeşil tema kaydı yeni açık temaya taşınır.
+    if (value == HexaThemePreference.green.name) {
+      return HexaThemePreference.light;
+    }
+
     for (final preference in HexaThemePreference.values) {
       if (preference.name == value) {
         return preference;
@@ -193,6 +325,15 @@ class AppSettingsController extends StateNotifier<AppSettingsState> {
 
     return HexaThemePreference.system;
   }
+
+  void _logFailure({
+    required String message,
+    required Object error,
+    required StackTrace stackTrace,
+  }) {
+    debugPrint('$message $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 }
 
 extension AppSettingsThemeExtension on AppSettingsState {
@@ -200,122 +341,17 @@ extension AppSettingsThemeExtension on AppSettingsState {
     switch (themePreference) {
       case HexaThemePreference.system:
         return ThemeMode.system;
+
       case HexaThemePreference.light:
-        return ThemeMode.light;
-      case HexaThemePreference.dark:
-        return ThemeMode.dark;
       case HexaThemePreference.green:
         return ThemeMode.light;
+
+      case HexaThemePreference.dark:
+        return ThemeMode.dark;
     }
   }
 
-  ThemeData get lightTheme {
-    if (themePreference == HexaThemePreference.green) {
-      return hexaGreenTheme;
-    }
+  ThemeData get lightTheme => HexaTheme.lightTheme;
 
-    return HexaTheme.lightTheme;
-  }
-
-  ThemeData get darkTheme {
-    if (themePreference == HexaThemePreference.green) {
-      return hexaGreenTheme;
-    }
-
-    return hexaDarkTheme;
-  }
-}
-
-final ThemeData hexaDarkTheme = _buildHexaDarkTheme();
-
-final ThemeData hexaGreenTheme = _buildHexaGreenTheme();
-
-ThemeData _buildHexaDarkTheme() {
-  final base = HexaTheme.lightTheme;
-
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFFB15090),
-    brightness: Brightness.dark,
-  );
-
-  const background = Color(0xFF171115);
-  const surface = Color(0xFF241A21);
-  const border = Color(0xFF493342);
-
-  return base.copyWith(
-    colorScheme: colorScheme,
-    scaffoldBackgroundColor: background,
-    canvasColor: background,
-    cardColor: surface,
-    dividerColor: border,
-    textTheme: base.textTheme.apply(
-      bodyColor: const Color(0xFFF9EEF4),
-      displayColor: const Color(0xFFF9EEF4),
-    ),
-    iconTheme: const IconThemeData(color: Color(0xFFF5DDE9)),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: background,
-      foregroundColor: Color(0xFFF9EEF4),
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      surfaceTintColor: Colors.transparent,
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: surface,
-      indicatorColor: colorScheme.primaryContainer,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: surface,
-      selectedItemColor: Color(0xFFFB9BBD),
-      unselectedItemColor: Color(0xFFBBA5B1),
-    ),
-    inputDecorationTheme: base.inputDecorationTheme.copyWith(
-      filled: true,
-      fillColor: surface,
-    ),
-  );
-}
-
-ThemeData _buildHexaGreenTheme() {
-  final base = HexaTheme.lightTheme;
-
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF4E7A58),
-    brightness: Brightness.light,
-  );
-
-  const background = Color(0xFFF3F7F0);
-  const surface = Color(0xFFFFFFFF);
-  const ink = Color(0xFF17261B);
-  const border = Color(0xFFD5E1D2);
-
-  return base.copyWith(
-    colorScheme: colorScheme,
-    scaffoldBackgroundColor: background,
-    canvasColor: background,
-    cardColor: surface,
-    dividerColor: border,
-    textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink),
-    iconTheme: const IconThemeData(color: Color(0xFF355B3E)),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: background,
-      foregroundColor: ink,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      surfaceTintColor: Colors.transparent,
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: surface,
-      indicatorColor: colorScheme.primaryContainer,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: surface,
-      selectedItemColor: Color(0xFF355B3E),
-      unselectedItemColor: Color(0xFF728177),
-    ),
-    inputDecorationTheme: base.inputDecorationTheme.copyWith(
-      filled: true,
-      fillColor: surface,
-    ),
-  );
+  ThemeData get darkTheme => HexaTheme.darkTheme;
 }

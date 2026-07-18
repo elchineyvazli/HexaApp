@@ -60,7 +60,9 @@ class NotificationModel {
 }
 
 // ⚡ CANLI BİLDİRİM AKIŞI (STREAM PROVIDER) ⚡
-final notificationsStreamProvider = StreamProvider<List<NotificationModel>>((ref) {
+final notificationsStreamProvider = StreamProvider<List<NotificationModel>>((
+  ref,
+) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
 
@@ -72,8 +74,8 @@ final notificationsStreamProvider = StreamProvider<List<NotificationModel>>((ref
       .limit(50)
       .snapshots()
       .map((snapshot) {
-    return snapshot.docs.map((doc) {
-      return NotificationModel.fromMap(doc.data(), doc.id);
-    }).toList();
-  });
+        return snapshot.docs.map((doc) {
+          return NotificationModel.fromMap(doc.data(), doc.id);
+        }).toList();
+      });
 });

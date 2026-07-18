@@ -155,30 +155,47 @@ class _StartupScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 650),
-                    curve: Curves.easeOutBack,
-                    tween: Tween(begin: 0.82, end: 1),
+                    duration: const Duration(milliseconds: 750),
+                    curve: HexaMotion.elastic, // 🆕 Hafif sıçramalı logo
+                    tween: Tween(begin: 0.8, end: 1.0),
                     builder: (context, value, child) {
                       return Transform.scale(scale: value, child: child);
                     },
                     child: const HexagonLogo(size: 88),
                   ),
                   const SizedBox(height: HexaSpacing.md),
-                  Text(
-                    'HEXA',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 6,
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOut,
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Opacity(opacity: value, child: child);
+                    },
+                    child: Text(
+                      'HEXA',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 6,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'DEĞERLİ İÇERİK, GERÇEK DESTEK',
-                    style: TextStyle(
-                      color: HexaColors.inkMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.3,
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOut,
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Opacity(opacity: value, child: child);
+                    },
+                    child: const Text(
+                      'DEĞERLİ İÇERİK, GERÇEK DESTEK',
+                      style: TextStyle(
+                        color: HexaColors.inkMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.3,
+                      ),
                     ),
                   ),
                   const SizedBox(height: HexaSpacing.lg),
@@ -212,42 +229,50 @@ class _StartupErrorScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(HexaSpacing.lg),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
-                  child: Container(
-                    padding: const EdgeInsets.all(HexaSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: const Color(0xF7FFFFFF),
-                      borderRadius: BorderRadius.circular(HexaRadius.lg),
-                      border: Border.all(color: HexaColors.border),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const HexagonLogo(size: 72),
-                        const SizedBox(height: HexaSpacing.lg),
-                        Text(
-                          'Bağlantıyı tamamlayamadık',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
-                        const SizedBox(height: HexaSpacing.sm),
-                        Text(
-                          'Oturum veya profil bilgisi alınamadı. İnternet bağlantını kontrol edip yeniden dene.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: HexaColors.inkMuted),
-                        ),
-                        const SizedBox(height: HexaSpacing.lg),
-                        FilledButton.icon(
-                          onPressed: () {
-                            ref.invalidate(authStateProvider);
-                            ref.invalidate(profileCompletionProvider);
-                            context.go(HexaRoutes.splash);
-                          },
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Tekrar dene'),
-                        ),
-                      ],
+                  child: TweenAnimationBuilder<double>(
+                    duration: HexaMotion.slow,
+                    curve: HexaMotion.emphasized,
+                    tween: Tween(begin: 0.92, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.scale(scale: value, child: child);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(HexaSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: const Color(0xF7FFFFFF),
+                        borderRadius: BorderRadius.circular(HexaRadius.lg),
+                        border: Border.all(color: HexaColors.border),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const HexagonLogo(size: 72),
+                          const SizedBox(height: HexaSpacing.lg),
+                          Text(
+                            'Bağlantıyı tamamlayamadık',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: HexaSpacing.sm),
+                          Text(
+                            'Oturum veya profil bilgisi alınamadı. İnternet bağlantını kontrol edip yeniden dene.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: HexaColors.inkMuted),
+                          ),
+                          const SizedBox(height: HexaSpacing.lg),
+                          FilledButton.icon(
+                            onPressed: () {
+                              ref.invalidate(authStateProvider);
+                              ref.invalidate(profileCompletionProvider);
+                              context.go(HexaRoutes.splash);
+                            },
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Tekrar dene'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -260,49 +285,99 @@ class _StartupErrorScreen extends ConsumerWidget {
   }
 }
 
-class _RouteErrorScreen extends StatelessWidget {
+class _RouteErrorScreen extends StatefulWidget {
   const _RouteErrorScreen({this.error});
 
   final Object? error;
+
+  @override
+  State<_RouteErrorScreen> createState() => _RouteErrorScreenState();
+}
+
+class _RouteErrorScreenState extends State<_RouteErrorScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shakeController;
+  late final Animation<Offset> _shakeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _shakeAnimation = TweenSequence<Offset>([
+      TweenSequenceItem(
+        tween: Tween(begin: Offset.zero, end: const Offset(4, 0)),
+        weight: 1,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: const Offset(4, 0), end: const Offset(-4, 0)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: const Offset(-4, 0), end: const Offset(2, 0)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: const Offset(2, 0), end: Offset.zero),
+        weight: 1,
+      ),
+    ]).animate(_shakeController);
+
+    // Ekran açılır açılmaz hafifçe sallanır
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _shakeController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Sayfa bulunamadı')),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(HexaSpacing.lg),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.explore_off_rounded,
-                  size: 64,
-                  color: HexaColors.signal,
-                ),
-                const SizedBox(height: HexaSpacing.md),
-                Text(
-                  'Aradığın sayfaya ulaşamadık.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: HexaSpacing.sm),
+        child: SlideTransition(
+          position: _shakeAnimation,
+          child: Padding(
+            padding: const EdgeInsets.all(HexaSpacing.lg),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.explore_off_rounded,
+                    size: 64,
+                    color: HexaColors.signal,
+                  ),
+                  const SizedBox(height: HexaSpacing.md),
                   Text(
-                    error.toString(),
+                    'Aradığın sayfaya ulaşamadık.',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  if (widget.error != null) ...[
+                    const SizedBox(height: HexaSpacing.sm),
+                    Text(
+                      widget.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: HexaSpacing.lg),
+                  FilledButton.icon(
+                    onPressed: () => context.go(HexaRoutes.feed),
+                    icon: const Icon(Icons.home_rounded),
+                    label: const Text('Ana sayfaya dön'),
                   ),
                 ],
-                const SizedBox(height: HexaSpacing.lg),
-                FilledButton.icon(
-                  onPressed: () => context.go(HexaRoutes.feed),
-                  icon: const Icon(Icons.home_rounded),
-                  label: const Text('Ana sayfaya dön'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,31 +1,51 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:hexa/core/theme/hexa_theme.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/theme/hexa_theme.dart';
 import '../feed_models.dart';
 
 class VideoPlaybackIndicator extends StatelessWidget {
-  const VideoPlaybackIndicator({super.key, required this.icon});
+  const VideoPlaybackIndicator({required this.icon, super.key});
 
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+
     return IgnorePointer(
       child: Center(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
+          duration: reduceMotion ? Duration.zero : HexaMotion.normal,
+          reverseDuration: reduceMotion ? Duration.zero : HexaMotion.fast,
+          switchInCurve: HexaMotion.elastic,
+          switchOutCurve: HexaMotion.exit,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.82, end: 1).animate(animation),
+                child: child,
+              ),
+            );
+          },
           child: icon == null
-              ? const SizedBox.shrink(key: ValueKey('empty'))
-              : Container(
-                  key: ValueKey(icon),
-                  width: 74,
-                  height: 74,
-                  decoration: const BoxDecoration(
-                    color: Color(0xCC141C21),
-                    shape: BoxShape.circle,
+              ? const SizedBox.shrink(key: ValueKey<String>('empty'))
+              : ClipPath(
+                  key: ValueKey<IconData>(icon!),
+                  clipper: const _HexagonClipper(),
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: HexaColors.earth.withAlpha(185),
+                      boxShadow: HexaShadows.signal,
+                    ),
+                    child: Icon(icon, color: HexaColors.white, size: 32),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 38),
                 ),
         ),
       ),
@@ -33,87 +53,75 @@ class VideoPlaybackIndicator extends StatelessWidget {
   }
 }
 
+/// Normal Feed görünümünde kullanılmamalıdır.
+///
+/// Video detay veya uzun basma görünümünde yalnızca içeriğin açıklamasını
+/// göstermek için korunur. Profil kimliği özellikle gösterilmez.
 class VideoCaptionOverlay extends StatelessWidget {
-  const VideoCaptionOverlay({super.key, required this.video});
+  const VideoCaptionOverlay({required this.video, super.key});
 
   final VideoModel video;
 
   @override
   Widget build(BuildContext context) {
-    final displayName = video.uploaderDisplayName.trim();
-    final username = video.username.trim();
-    final showBoth = displayName.isNotEmpty && displayName != username;
+    final caption = video.caption.trim();
+
+    if (caption.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
 
     return Positioned(
-      left: 16,
-      right: 92,
-      bottom: 56,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  showBoth ? displayName : username,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(color: Color(0xAA000000), blurRadius: 8),
-                    ],
-                  ),
-                ),
+      left: HexaSpacing.md,
+      right: 86,
+      bottom: 54,
+      child: IgnorePointer(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              width: 2,
+              height: 34,
+              margin: const EdgeInsets.only(top: 2),
+              decoration: const BoxDecoration(
+                gradient: HexaGradients.navIndicator,
+                borderRadius: HexaRadius.borderPill,
               ),
-              if (showBoth) ...[
-                const SizedBox(width: 7),
-                Flexible(
-                  child: Text(
-                    username,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xD9FFFFFF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+            ),
+            const SizedBox(width: HexaSpacing.sm),
+            Expanded(
+              child: Text(
+                caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: HexaColors.white,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                  shadows: const <Shadow>[
+                    Shadow(color: HexaColors.earth, blurRadius: 10),
+                  ],
                 ),
-              ],
-            ],
-          ),
-          if (video.caption.trim().isNotEmpty) ...[
-            const SizedBox(height: 7),
-            Text(
-              video.caption,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                height: 1.35,
-                shadows: [
-                  Shadow(color: Color(0xCC000000), blurRadius: 8),
-                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
+/// Eski VideoBottomControls kullanımları için korunan minimal sürüm.
+///
+/// Feed'in yeni ana görünümünde bu kontrol yalnızca kullanıcı etkileşiminden
+/// sonra kısa süreli gösterilmelidir.
 class VideoBottomControls extends StatelessWidget {
   const VideoBottomControls({
-    super.key,
     required this.controller,
     required this.isMuted,
     required this.onToggleMute,
+    super.key,
   });
 
   final VideoPlayerController controller;
@@ -123,117 +131,184 @@ class VideoBottomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: 12,
-      right: 12,
-      bottom: 7,
-      child: Row(
-        children: [
-          Material(
-            color: const Color(0x99141C21),
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: onToggleMute,
-              customBorder: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Icon(
-                  isMuted
-                      ? Icons.volume_off_rounded
-                      : Icons.volume_up_rounded,
-                  color: Colors.white,
-                  size: 18,
+      left: HexaSpacing.sm,
+      right: HexaSpacing.sm,
+      bottom: HexaSpacing.xs,
+      child: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        child: Row(
+          children: <Widget>[
+            _OverlayMuteButton(isMuted: isMuted, onTap: onToggleMute),
+            const SizedBox(width: HexaSpacing.sm),
+            Expanded(
+              child: VideoProgressIndicator(
+                controller,
+                allowScrubbing: true,
+                padding: const EdgeInsets.symmetric(vertical: HexaSpacing.sm),
+                colors: const VideoProgressColors(
+                  playedColor: HexaColors.hopePink,
+                  bufferedColor: Color(0x52FFFFFF),
+                  backgroundColor: Color(0x24FFFFFF),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: VideoProgressIndicator(
-              controller,
-              allowScrubbing: true,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              colors: const VideoProgressColors(
-                playedColor: HexaColors.signal,
-                bufferedColor: Color(0x66FFFFFF),
-                backgroundColor: Color(0x33FFFFFF),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class VideoLoadingIndicator extends StatelessWidget {
-  const VideoLoadingIndicator({super.key, this.compact = false});
+class VideoLoadingIndicator extends StatefulWidget {
+  const VideoLoadingIndicator({this.compact = false, super.key});
 
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
-    final size = compact ? 42.0 : 58.0;
+  State<VideoLoadingIndicator> createState() {
+    return _VideoLoadingIndicatorState();
+  }
+}
 
-    return Container(
-      width: size,
-      height: size,
-      padding: EdgeInsets.all(compact ? 11 : 15),
-      decoration: BoxDecoration(
-        color: const Color(0xB3141C21),
-        borderRadius: BorderRadius.circular(compact ? 16 : 20),
-      ),
-      child: const CircularProgressIndicator(
-        strokeWidth: 2.4,
-        color: Colors.white,
+class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: HexaMotion.breathe * 3,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (HexaMotion.reduceMotionOf(context)) {
+      _controller
+        ..stop()
+        ..value = 0.12;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.compact ? 44.0 : 62.0;
+
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            size: Size.square(size),
+            painter: _LoadingHexPainter(
+              phase: _controller.value,
+              color: HexaColors.hopePink,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class VideoErrorView extends StatelessWidget {
+class VideoErrorView extends StatefulWidget {
   const VideoErrorView({
-    super.key,
     required this.message,
     required this.onRetry,
+    super.key,
   });
 
   final String message;
   final VoidCallback onRetry;
 
   @override
+  State<VideoErrorView> createState() {
+    return _VideoErrorViewState();
+  }
+}
+
+class _VideoErrorViewState extends State<VideoErrorView> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+
     return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 30),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xE6141C21),
-          borderRadius: BorderRadius.circular(HexaRadius.lg),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.play_disabled_rounded,
-              color: Colors.white,
-              size: 34,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+      child: Semantics(
+        button: true,
+        label: 'Videoyu tekrar yükle',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) {
+            setState(() => _pressed = true);
+          },
+          onTapCancel: () {
+            setState(() => _pressed = false);
+          },
+          onTapUp: (_) {
+            setState(() => _pressed = false);
+            widget.onRetry();
+          },
+          child: AnimatedScale(
+            scale: _pressed ? HexaMotion.pressScale : 1,
+            duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+            curve: HexaMotion.elastic,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 280),
+              margin: const EdgeInsets.symmetric(horizontal: HexaSpacing.xl),
+              padding: const EdgeInsets.all(HexaSpacing.lg),
+              decoration: BoxDecoration(
+                color: HexaColors.earth.withAlpha(205),
+                borderRadius: HexaRadius.borderLg,
+                border: Border.all(color: HexaColors.white.withAlpha(34)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Icon(
+                    Icons.refresh_rounded,
+                    color: HexaColors.hopePink,
+                    size: 28,
+                  ),
+                  const SizedBox(height: HexaSpacing.sm),
+                  Text(
+                    widget.message,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: HexaColors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: HexaSpacing.xs),
+                  Text(
+                    'Tekrar denemek için dokun',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: HexaColors.white.withAlpha(155),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 14),
-            FilledButton.tonalIcon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Tekrar dene'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -247,17 +322,117 @@ class VideoReadabilityGradient extends StatelessWidget {
   Widget build(BuildContext context) {
     return const IgnorePointer(
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: [0, 0.22, 0.56, 1],
-            colors: [
-              Color(0x80000000),
-              Color(0x16000000),
-              Color(0x12000000),
-              Color(0xD9000000),
-            ],
+        decoration: BoxDecoration(gradient: HexaGradients.feedScrim),
+      ),
+    );
+  }
+}
+
+class VideoWatchTimer {
+  static const int _maximumTrackedMs = 24 * 60 * 60 * 1000;
+
+  final Stopwatch _stopwatch = Stopwatch();
+
+  int _committedMs = 0;
+
+  bool get isActive => _stopwatch.isRunning;
+
+  int get elapsedMs {
+    final runningMs = _stopwatch.isRunning ? _stopwatch.elapsedMilliseconds : 0;
+
+    return (_committedMs + runningMs).clamp(0, _maximumTrackedMs).toInt();
+  }
+
+  void setActive(bool active) {
+    if (active) {
+      if (!_stopwatch.isRunning) {
+        _stopwatch.start();
+      }
+
+      return;
+    }
+
+    _commitRunningTime();
+  }
+
+  int snapshot({bool pause = false}) {
+    if (pause) {
+      _commitRunningTime();
+    }
+
+    return elapsedMs;
+  }
+
+  void reset() {
+    _stopwatch
+      ..stop()
+      ..reset();
+
+    _committedMs = 0;
+  }
+
+  void _commitRunningTime() {
+    if (!_stopwatch.isRunning) {
+      return;
+    }
+
+    _stopwatch.stop();
+
+    _committedMs = (_committedMs + _stopwatch.elapsedMilliseconds)
+        .clamp(0, _maximumTrackedMs)
+        .toInt();
+
+    _stopwatch.reset();
+  }
+}
+
+class _OverlayMuteButton extends StatefulWidget {
+  const _OverlayMuteButton({required this.isMuted, required this.onTap});
+
+  final bool isMuted;
+  final VoidCallback onTap;
+
+  @override
+  State<_OverlayMuteButton> createState() {
+    return _OverlayMuteButtonState();
+  }
+}
+
+class _OverlayMuteButtonState extends State<_OverlayMuteButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) {
+        setState(() => _pressed = true);
+      },
+      onTapCancel: () {
+        setState(() => _pressed = false);
+      },
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _pressed ? HexaMotion.pressScale : 1,
+        duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+        curve: HexaMotion.elastic,
+        child: Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: HexaColors.earth.withAlpha(135),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            widget.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+            color: HexaColors.white,
+            size: 16,
           ),
         ),
       ),
@@ -265,32 +440,104 @@ class VideoReadabilityGradient extends StatelessWidget {
   }
 }
 
+class _HexagonClipper extends CustomClipper<Path> {
+  const _HexagonClipper();
 
-class VideoWatchTimer {
-  final Stopwatch _stopwatch = Stopwatch();
-  int _committedMs = 0;
+  @override
+  Path getClip(Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2;
+    final path = Path();
 
-  int get elapsedMs {
-    final running = _stopwatch.isRunning ? _stopwatch.elapsedMilliseconds : 0;
-    return (_committedMs + running).clamp(0, 24 * 60 * 60 * 1000).toInt();
+    for (var index = 0; index < 6; index++) {
+      final angle = -math.pi / 2 + index * math.pi / 3;
+
+      final point = Offset(
+        center.dx + math.cos(angle) * radius,
+        center.dy + math.sin(angle) * radius,
+      );
+
+      if (index == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    return path..close();
   }
 
-  void setActive(bool active) {
-    if (active) {
-      if (!_stopwatch.isRunning) _stopwatch.start();
+  @override
+  bool shouldReclip(covariant _HexagonClipper oldClipper) {
+    return false;
+  }
+}
+
+class _LoadingHexPainter extends CustomPainter {
+  const _LoadingHexPainter({required this.phase, required this.color});
+
+  final double phase;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide * 0.35;
+
+    final path = Path();
+
+    for (var index = 0; index < 6; index++) {
+      final angle = -math.pi / 2 + index * math.pi / 3;
+
+      final point = Offset(
+        center.dx + math.cos(angle) * radius,
+        center.dy + math.sin(angle) * radius,
+      );
+
+      if (index == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    path.close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = HexaColors.white.withAlpha(28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    final metrics = path.computeMetrics().toList();
+
+    if (metrics.isEmpty) {
       return;
     }
 
-    if (!_stopwatch.isRunning) return;
-    _stopwatch.stop();
-    _committedMs += _stopwatch.elapsedMilliseconds;
-    _stopwatch.reset();
+    final metric = metrics.first;
+    final segmentLength = metric.length * 0.28;
+    final start = metric.length * phase;
+    final end = start + segmentLength;
+
+    final activePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+
+    if (end <= metric.length) {
+      canvas.drawPath(metric.extractPath(start, end), activePaint);
+    } else {
+      canvas.drawPath(metric.extractPath(start, metric.length), activePaint);
+      canvas.drawPath(metric.extractPath(0, end - metric.length), activePaint);
+    }
   }
 
-  void reset() {
-    _stopwatch
-      ..stop()
-      ..reset();
-    _committedMs = 0;
+  @override
+  bool shouldRepaint(covariant _LoadingHexPainter oldDelegate) {
+    return oldDelegate.phase != phase || oldDelegate.color != color;
   }
 }

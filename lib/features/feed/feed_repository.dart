@@ -1,6 +1,7 @@
-// lib/features/feed/feed_repository.dart
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,16 +10,23 @@ import 'feed_models.dart';
 enum SearchType { video, user, hashtag }
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
+
 final searchTypeProvider = StateProvider<SearchType>((ref) => SearchType.video);
 
+final feedFirestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return FirebaseFirestore.instance;
+});
+
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
-  return FeedRepository(FirebaseFirestore.instance);
+  return FeedRepository(ref.watch(feedFirestoreProvider));
 });
 
 final feedControllerProvider =
     StateNotifierProvider.autoDispose<FeedController, FeedState>((ref) {
       final controller = FeedController(ref.watch(feedRepositoryProvider));
-      controller.loadInitial();
+
+      unawaited(controller.loadInitial());
+
       return controller;
     });
 
@@ -28,40 +36,114 @@ final filteredFeedVideosProvider = Provider.autoDispose<List<VideoModel>>((
   final videos = ref.watch(
     feedControllerProvider.select((state) => state.videos),
   );
-  final rawQuery = ref.watch(searchQueryProvider).trim().toLowerCase();
+
+  final query = ref.watch(searchQueryProvider).trim();
+
   final type = ref.watch(searchTypeProvider);
 
-  if (rawQuery.isEmpty) {
+  if (query.isEmpty) {
     return videos;
   }
 
-  return videos
-      .where((video) {
-        switch (type) {
-          case SearchType.video:
-            return video.caption.toLowerCase().contains(rawQuery);
-          case SearchType.user:
-            final cleanQuery = rawQuery.startsWith('@')
-                ? rawQuery.substring(1)
-                : rawQuery;
-            final username = video.username.replaceFirst('@', '').toLowerCase();
-            final displayName = video.uploaderDisplayName.toLowerCase();
-            return username.contains(cleanQuery) ||
-                displayName.contains(cleanQuery);
-          case SearchType.hashtag:
-            final cleanTag = rawQuery.startsWith('#') ? rawQuery : '#$rawQuery';
-            return video.caption.toLowerCase().contains(cleanTag);
-        }
-      })
-      .toList(growable: false);
+  return List<VideoModel>.unmodifiable(
+    videos.where((video) {
+      switch (type) {
+        case SearchType.video:
+          return video.matchesVideoQuery(query);
+
+        case SearchType.user:
+          return video.matchesUserQuery(query);
+
+        case SearchType.hashtag:
+          return video.matchesHashtagQuery(query);
+      }
+    }),
+  );
 });
 
 @Deprecated('feedControllerProvider kullanın.')
 final videosStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
-  final type = ref.watch(searchTypeProvider);
-  return ref.watch(feedRepositoryProvider).getVideos(query: query, type: type);
+  return ref
+      .watch(feedRepositoryProvider)
+      .getVideos(
+        query: ref.watch(searchQueryProvider),
+        type: ref.watch(searchTypeProvider),
+      );
 });
+
+enum FeedFailureCode {
+  permission,
+  authentication,
+  network,
+  missingIndex,
+  unavailable,
+  unknown,
+}
+
+@immutable
+class FeedFailure implements Exception {
+  const FeedFailure({required this.code, required this.message, this.cause});
+
+  factory FeedFailure.from(Object error) {
+    if (error is FeedFailure) {
+      return error;
+    }
+
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'permission-denied':
+          return FeedFailure(
+            code: FeedFailureCode.permission,
+            message: 'Feed güvenlik kuralları tarafından engellendi.',
+            cause: error,
+          );
+
+        case 'unauthenticated':
+          return FeedFailure(
+            code: FeedFailureCode.authentication,
+            message: 'Feed için yeniden giriş yapmalısın.',
+            cause: error,
+          );
+
+        case 'failed-precondition':
+          return FeedFailure(
+            code: FeedFailureCode.missingIndex,
+            message: 'Feed sorgusu için Firestore indeksi eksik.',
+            cause: error,
+          );
+
+        case 'unavailable':
+        case 'network-request-failed':
+          return FeedFailure(
+            code: FeedFailureCode.network,
+            message: 'Feed bağlantısı kurulamadı.',
+            cause: error,
+          );
+
+        case 'deadline-exceeded':
+        case 'aborted':
+          return FeedFailure(
+            code: FeedFailureCode.unavailable,
+            message: 'Feed şu anda yanıt vermiyor.',
+            cause: error,
+          );
+      }
+    }
+
+    return FeedFailure(
+      code: FeedFailureCode.unknown,
+      message: 'Feed yüklenemedi.',
+      cause: error,
+    );
+  }
+
+  final FeedFailureCode code;
+  final String message;
+  final Object? cause;
+
+  @override
+  String toString() => message;
+}
 
 @immutable
 class FeedState {
@@ -75,13 +157,19 @@ class FeedState {
   });
 
   final List<VideoModel> videos;
+
   final bool isInitialLoading;
   final bool isRefreshing;
   final bool isLoadingMore;
   final bool hasMore;
-  final Object? error;
+
+  final FeedFailure? error;
 
   bool get hasContent => videos.isNotEmpty;
+
+  bool get isBusy {
+    return isInitialLoading || isRefreshing || isLoadingMore;
+  }
 
   FeedState copyWith({
     List<VideoModel>? videos,
@@ -97,7 +185,9 @@ class FeedState {
       isRefreshing: isRefreshing ?? this.isRefreshing,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
-      error: identical(error, _keepPreviousValue) ? this.error : error,
+      error: identical(error, _keepPreviousValue)
+          ? this.error
+          : error as FeedFailure?,
     );
   }
 }
@@ -112,7 +202,9 @@ class FeedPage {
   });
 
   final List<VideoModel> videos;
+
   final DocumentSnapshot<Map<String, dynamic>>? cursor;
+
   final bool hasMore;
 }
 
@@ -120,122 +212,115 @@ class FeedRepository {
   FeedRepository(this._firestore);
 
   static const int defaultPageSize = 12;
+  static const int maximumPageSize = 30;
 
   final FirebaseFirestore _firestore;
 
-  CollectionReference<Map<String, dynamic>> get _videosCollection =>
-      _firestore.collection('videos');
+  CollectionReference<Map<String, dynamic>> get _videosCollection {
+    return _firestore.collection('videos');
+  }
+
+  Query<Map<String, dynamic>> _readyFeedQuery() {
+    return _videosCollection
+        .where('status', isEqualTo: 'ready')
+        .where('visibility', isEqualTo: 'public')
+        .orderBy('createdAt', descending: true);
+  }
 
   Future<FeedPage> fetchPage({
     DocumentSnapshot<Map<String, dynamic>>? after,
     int limit = defaultPageSize,
   }) async {
+    final safeLimit = limit.clamp(1, maximumPageSize).toInt();
+
+    final fetchLimit = (safeLimit * 2).clamp(safeLimit + 1, 50).toInt();
+
+    Query<Map<String, dynamic>> query = _readyFeedQuery().limit(fetchLimit);
+
+    if (after != null) {
+      query = query.startAfterDocument(after);
+    }
+
+    final snapshot = await query.get();
+
     final videos = <VideoModel>[];
     var cursor = after;
-    var hasMore = true;
-    var scannedPages = 0;
+    var consumedDocuments = 0;
 
-    // En yeni belgeler hâlâ işleniyor olabilir. Hazır video bulana kadar
-    // birkaç ham Firestore sayfasını tarar; böylece boş feed'de takılı kalmaz.
-    while (videos.length < limit && hasMore && scannedPages < 10) {
-      Query<Map<String, dynamic>> query = _videosCollection
-          .orderBy('createdAt', descending: true)
-          .limit(limit);
+    for (final document in snapshot.docs) {
+      cursor = document;
+      consumedDocuments++;
 
-      if (cursor != null) {
-        query = query.startAfterDocument(cursor);
+      final video = VideoModel.fromMap(document.data(), document.id);
+
+      if (video.isFeedEligible) {
+        videos.add(video);
       }
 
-      final snapshot = await query.get();
-      scannedPages++;
-
-      if (snapshot.docs.isEmpty) {
-        hasMore = false;
+      if (videos.length >= safeLimit) {
         break;
       }
-
-      cursor = snapshot.docs.last;
-      hasMore = snapshot.docs.length == limit;
-
-      for (final document in snapshot.docs) {
-        final video = VideoModel.fromMap(document.data(), document.id);
-        if (_isFeedReady(video)) {
-          videos.add(video);
-          if (videos.length == limit) {
-            break;
-          }
-        }
-      }
     }
+
+    final stoppedBeforeSnapshotEnd = consumedDocuments < snapshot.docs.length;
+
+    final mayHaveAnotherFirestorePage = snapshot.docs.length == fetchLimit;
 
     return FeedPage(
       videos: List<VideoModel>.unmodifiable(videos),
       cursor: cursor,
-      hasMore: hasMore,
+      hasMore: stoppedBeforeSnapshotEnd || mayHaveAnotherFirestorePage,
     );
   }
 
+  Stream<List<VideoModel>> watchLatestVideos({int limit = 50}) {
+    final safeLimit = limit.clamp(1, 100).toInt();
+
+    return _readyFeedQuery().limit(safeLimit).snapshots().map((snapshot) {
+      final videos = snapshot.docs
+          .map((document) => VideoModel.fromMap(document.data(), document.id))
+          .where((video) => video.isFeedEligible)
+          .toList(growable: false);
+
+      return List<VideoModel>.unmodifiable(videos);
+    });
+  }
+
+  @Deprecated('watchLatestVideos kullanın.')
   Stream<List<Map<String, dynamic>>> getVideos({
     String query = '',
     SearchType type = SearchType.video,
   }) {
-    return _videosCollection.limit(50).snapshots().map((snapshot) {
-      final normalizedQuery = query.trim().toLowerCase();
-      final documents = snapshot.docs
-          .map((document) {
-            return <String, dynamic>{...document.data(), 'id': document.id};
-          })
-          .where((data) {
-            final model = VideoModel.fromMap(
-              data,
-              data['id']?.toString() ?? '',
-            );
+    return _readyFeedQuery().limit(50).snapshots().map((snapshot) {
+      final normalizedQuery = query.trim();
 
-            if (!_isFeedReady(model)) {
+      return snapshot.docs
+          .where((document) {
+            final model = VideoModel.fromMap(document.data(), document.id);
+
+            if (!model.isFeedEligible) {
               return false;
-            }
-
-            if (normalizedQuery.isEmpty) {
-              return true;
             }
 
             switch (type) {
               case SearchType.video:
-                return model.caption.toLowerCase().contains(normalizedQuery);
+                return model.matchesVideoQuery(normalizedQuery);
+
               case SearchType.user:
-                final cleanQuery = normalizedQuery.startsWith('@')
-                    ? normalizedQuery.substring(1)
-                    : normalizedQuery;
-                return model.username
-                        .replaceFirst('@', '')
-                        .toLowerCase()
-                        .contains(cleanQuery) ||
-                    model.uploaderDisplayName.toLowerCase().contains(
-                      cleanQuery,
-                    );
+                return model.matchesUserQuery(normalizedQuery);
+
               case SearchType.hashtag:
-                final cleanTag = normalizedQuery.startsWith('#')
-                    ? normalizedQuery
-                    : '#$normalizedQuery';
-                return model.caption.toLowerCase().contains(cleanTag);
+                return model.matchesHashtagQuery(normalizedQuery);
             }
           })
+          .map(
+            (document) => <String, dynamic>{
+              ...document.data(),
+              'id': document.id,
+            },
+          )
           .toList(growable: false);
-
-      documents.sort((a, b) {
-        final aDate = _readTimestamp(a['createdAt']);
-        final bDate = _readTimestamp(b['createdAt']);
-        return bDate.compareTo(aDate);
-      });
-
-      return documents;
     });
-  }
-
-  bool _isFeedReady(VideoModel video) {
-    return video.isReady &&
-        video.isPubliclyVisible &&
-        video.playbackUrl.trim().isNotEmpty;
   }
 }
 
@@ -245,11 +330,13 @@ class FeedController extends StateNotifier<FeedState> {
   final FeedRepository _repository;
 
   DocumentSnapshot<Map<String, dynamic>>? _cursor;
+
   int _requestGeneration = 0;
+  bool _disposed = false;
 
   Future<void> loadInitial() async {
     final generation = ++_requestGeneration;
-    final hasContent = state.videos.isNotEmpty;
+    final hasContent = state.hasContent;
 
     state = state.copyWith(
       isInitialLoading: !hasContent,
@@ -260,17 +347,19 @@ class FeedController extends StateNotifier<FeedState> {
 
     try {
       final page = await _repository.fetchPage();
-      if (!mounted || generation != _requestGeneration) {
+
+      if (!_isCurrent(generation)) {
         return;
       }
 
       _cursor = page.cursor;
+
       state = FeedState(
-        videos: _deduplicate(page.videos),
+        videos: _mergeUnique(page.videos),
         hasMore: page.hasMore,
       );
     } catch (error) {
-      if (!mounted || generation != _requestGeneration) {
+      if (!_isCurrent(generation)) {
         return;
       }
 
@@ -278,7 +367,7 @@ class FeedController extends StateNotifier<FeedState> {
         isInitialLoading: false,
         isRefreshing: false,
         isLoadingMore: false,
-        error: error,
+        error: FeedFailure.from(error),
       );
     }
   }
@@ -286,55 +375,95 @@ class FeedController extends StateNotifier<FeedState> {
   Future<void> refresh() => loadInitial();
 
   Future<void> loadMore() async {
-    if (state.isInitialLoading ||
-        state.isRefreshing ||
-        state.isLoadingMore ||
-        !state.hasMore) {
+    if (state.isBusy || !state.hasMore) {
       return;
     }
 
     final generation = _requestGeneration;
+
     state = state.copyWith(isLoadingMore: true, error: null);
 
     try {
       final page = await _repository.fetchPage(after: _cursor);
-      if (!mounted || generation != _requestGeneration) {
+
+      if (!_isCurrent(generation)) {
         return;
       }
 
       _cursor = page.cursor;
+
       state = state.copyWith(
-        videos: _deduplicate(<VideoModel>[...state.videos, ...page.videos]),
+        videos: _mergeUnique(<VideoModel>[...state.videos, ...page.videos]),
         isLoadingMore: false,
         hasMore: page.hasMore,
         error: null,
       );
     } catch (error) {
-      if (!mounted || generation != _requestGeneration) {
+      if (!_isCurrent(generation)) {
         return;
       }
 
-      state = state.copyWith(isLoadingMore: false, error: error);
+      state = state.copyWith(
+        isLoadingMore: false,
+        error: FeedFailure.from(error),
+      );
     }
   }
 
-  List<VideoModel> _deduplicate(List<VideoModel> source) {
-    final byId = <String, VideoModel>{};
+  void replaceVideo(VideoModel updatedVideo) {
+    final index = state.videos.indexWhere(
+      (video) => video.id == updatedVideo.id,
+    );
+
+    if (index < 0) {
+      return;
+    }
+
+    final videos = List<VideoModel>.of(state.videos);
+
+    videos[index] = updatedVideo;
+
+    state = state.copyWith(videos: List<VideoModel>.unmodifiable(videos));
+  }
+
+  void incrementViewLocally(String videoId) {
+    final index = state.videos.indexWhere((video) => video.id == videoId);
+
+    if (index < 0) {
+      return;
+    }
+
+    final current = state.videos[index];
+
+    replaceVideo(current.copyWith(viewsCount: current.viewsCount + 1));
+  }
+
+  List<VideoModel> _mergeUnique(Iterable<VideoModel> source) {
+    final ids = <String>{};
+    final result = <VideoModel>[];
+
     for (final video in source) {
-      if (video.id.trim().isNotEmpty) {
-        byId[video.id] = video;
-      }
-    }
-    return List<VideoModel>.unmodifiable(byId.values);
-  }
-}
+      final id = video.id.trim();
 
-DateTime _readTimestamp(Object? value) {
-  if (value is Timestamp) {
-    return value.toDate();
+      if (id.isEmpty || !ids.add(id)) {
+        continue;
+      }
+
+      result.add(video);
+    }
+
+    return List<VideoModel>.unmodifiable(result);
   }
-  if (value is DateTime) {
-    return value;
+
+  bool _isCurrent(int generation) {
+    return !_disposed && generation == _requestGeneration;
   }
-  return DateTime.fromMillisecondsSinceEpoch(0);
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _requestGeneration++;
+
+    super.dispose();
+  }
 }

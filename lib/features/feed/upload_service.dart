@@ -24,10 +24,34 @@ class VideoUploadProgress {
   final String message;
 }
 
+enum VideoUploadFailureCode {
+  unauthenticated,
+  profileIncomplete,
+  validation,
+  busy,
+  cancelled,
+  permission,
+  network,
+  quota,
+  storage,
+  firestore,
+  unknown,
+}
+
 class VideoUploadException implements Exception {
-  const VideoUploadException(this.message);
+  const VideoUploadException(
+    this.message, {
+    this.code = VideoUploadFailureCode.unknown,
+    this.cause,
+  });
 
   final String message;
+  final VideoUploadFailureCode code;
+  final Object? cause;
+
+  bool get isCancelled {
+    return code == VideoUploadFailureCode.cancelled;
+  }
 
   @override
   String toString() => message;
@@ -48,6 +72,25 @@ class UploadService {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
   final VideoUploadValidator _validator;
+  UploadTask? _activeTask;
+
+  Future<void> cancelActiveUpload() async {
+    final task = _activeTask;
+
+    if (task == null) {
+      return;
+    }
+
+    try {
+      await task.cancel();
+    } on FirebaseException {
+      // Task zaten bitmiş veya iptal edilmiş olabilir.
+    } finally {
+      if (identical(_activeTask, task)) {
+        _activeTask = null;
+      }
+    }
+  }
 
   Stream<VideoUploadProgress> uploadVideo({
     required PreparedVideoUpload preparedVideo,
@@ -237,10 +280,7 @@ class UploadService {
 
       documentCreated = true;
 
-      yield const VideoUploadProgress(
-        value: 1,
-        message: 'Video yayınlandı',
-      );
+      yield const VideoUploadProgress(value: 1, message: 'Video yayınlandı');
     } on FirebaseException catch (error) {
       if (!documentCreated) {
         await _cleanup(

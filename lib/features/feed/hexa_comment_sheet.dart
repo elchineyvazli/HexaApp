@@ -1,187 +1,437 @@
-// lib/features/feed/hexa_comment_sheet.dart
 import 'dart:ui';
-import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'feed_models.dart';
+import 'package:flutter/material.dart';
+
+import '../../core/theme/hexa_theme.dart';
 import 'comment_list_view.dart';
-import 'sticker_shop_bar.dart';
 
 class HexaCommentSheet extends StatefulWidget {
+  const HexaCommentSheet({
+    required this.videoId,
+    this.onOpenArtifacts,
+    super.key,
+  });
+
   final String videoId;
-  const HexaCommentSheet({super.key, required this.videoId});
+
+  /// Gerçek Coin ve Artefakt altyapısı bağlandığında gösterilir.
+  final VoidCallback? onOpenArtifacts;
 
   @override
-  State<HexaCommentSheet> createState() => _HexaCommentSheetState();
+  State<HexaCommentSheet> createState() {
+    return _HexaCommentSheetState();
+  }
 }
 
-class _HexaCommentSheetState extends State<HexaCommentSheet> with SingleTickerProviderStateMixin {
-  int _userCoins = 995;
-  final TextEditingController _commentController = TextEditingController();
+class _HexaCommentSheetState extends State<HexaCommentSheet> {
+  late final TextEditingController _commentController;
+  late final FocusNode _commentFocusNode;
 
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  String _activeFlyingSticker = '';
-
-  final List<StickerModel> _luxuryStickers = [
-    const StickerModel(id: 'st_1', emoji: '🔥', name: 'Neon Fire', cost: 5),
-    const StickerModel(id: 'st_2', emoji: '💎', name: 'Cyber Diamond', cost: 10),
-    const StickerModel(id: 'st_3', emoji: '👑', name: 'Hexa Crown', cost: 25),
-    const StickerModel(id: 'st_4', emoji: '🚀', name: 'Quantum Rocket', cost: 50),
-    const StickerModel(id: 'st_5', emoji: '🛸', name: 'Neon UFO', cost: 75),
-    const StickerModel(id: 'st_6', emoji: '⚡', name: 'Overdrive', cost: 5),
-  ];
+  bool _isPosting = false;
+  bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 3.5).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
-    );
-    _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _animationController, curve: const Interval(0.6, 1.0, curve: Curves.easeOut)),
-    );
+
+    _commentController = TextEditingController();
+
+    _commentFocusNode = FocusNode()..addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isFocused = _commentFocusNode.hasFocus;
+    });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _commentFocusNode
+      ..removeListener(_handleFocusChange)
+      ..dispose();
+
     _commentController.dispose();
+
     super.dispose();
   }
 
-  // ⚡ DİNAMİK YORUM ARTIŞ MOTORU ⚡
-  Future<void> _postComment(String text, {String sticker = ''}) async {
+  Future<void> _postComment() async {
+    if (_isPosting) {
+      return;
+    }
+
+    final text = _cleanComment(_commentController.text);
+
+    if (text.isEmpty) {
+      return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
-    final username = user?.displayName ?? '@hexa_user';
 
-    final videoRef = FirebaseFirestore.instance.collection('videos').doc(widget.videoId);
+    if (user == null) {
+      _showMessage('Yorum yapmak için giriş yapmalısın.');
+      return;
+    }
 
-    // 1. Yorumu koleksiyona yaz
-    await videoRef.collection('comments').add({
-      'username': username,
-      'text': text,
-      'sticker': sticker,
-      'createdAt': FieldValue.serverTimestamp(),
+    final videoId = widget.videoId.trim();
+
+    if (videoId.isEmpty) {
+      _showMessage('Video bilgisi bulunamadı.');
+      return;
+    }
+
+    setState(() {
+      _isPosting = true;
     });
 
-    // 2. Ana videonun yorum sayacını artır
-    await videoRef.update({
-      'commentsCount': FieldValue.increment(1),
-    });
-  }
+    try {
+      final firestore = FirebaseFirestore.instance;
 
-  void _triggerStickerAnimation(String emoji) {
-    setState(() => _activeFlyingSticker = emoji);
-    _animationController.forward(from: 0.0).then((_) {
-      if (mounted) setState(() => _activeFlyingSticker = '');
-    });
-  }
+      final videoReference = firestore.collection('videos').doc(videoId);
 
-  void _handleStickerTap(StickerModel sticker) {
-    if (_userCoins >= sticker.cost) {
-      setState(() => _userCoins -= sticker.cost);
-      _postComment('Lüks bir sticker gönderdi!', sticker: sticker.emoji);
-      _triggerStickerAnimation(sticker.emoji);
-    } else {
-      _showCoinShopDialog(sticker);
+      final commentReference = videoReference.collection('comments').doc();
+
+      final batch = firestore.batch();
+      final serverTime = FieldValue.serverTimestamp();
+
+      final displayName = user.displayName?.trim() ?? '';
+
+      final emailName = user.email?.split('@').first.trim() ?? '';
+
+      final username = displayName.isNotEmpty
+          ? displayName
+          : emailName.isNotEmpty
+          ? '@$emailName'
+          : '@hexa_user';
+
+      batch.set(commentReference, <String, dynamic>{
+        'schemaVersion': 2,
+        'id': commentReference.id,
+        'videoId': videoId,
+        'userId': user.uid,
+        'username': username,
+        'displayName': displayName,
+        'avatarUrl': user.photoURL?.trim() ?? '',
+        'text': text,
+        'sticker': '',
+        'status': 'visible',
+        'createdAt': serverTime,
+        'updatedAt': serverTime,
+      });
+
+      batch.update(videoReference, <String, dynamic>{
+        'commentsCount': FieldValue.increment(1),
+        'updatedAt': serverTime,
+      });
+
+      await batch.commit();
+
+      _commentController.clear();
+
+      if (mounted) {
+        _commentFocusNode.requestFocus();
+      }
+    } on FirebaseException catch (error) {
+      _showMessage(_firebaseMessage(error));
+    } catch (_) {
+      _showMessage('Yorum gönderilemedi.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPosting = false;
+        });
+      }
     }
   }
 
-  void _showCoinShopDialog(StickerModel sticker) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF121320).withOpacity(0.9),
-        title: const Text('COIN YETERSİZ!', style: TextStyle(color: Colors.white)),
-        content: const Text('Bu işlem için yeterli bakiyen yok.', style: TextStyle(color: Colors.white54)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal'))],
-      ),
-    );
+  String _cleanComment(String value) {
+    final clean = value
+        .replaceAll(RegExp(r'[\u0000-\u0008\u000B\u000C\u000E-\u001F]'), '')
+        .trim();
+
+    if (clean.length <= 500) {
+      return clean;
+    }
+
+    return clean.substring(0, 500);
+  }
+
+  String _firebaseMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+      case 'unauthorized':
+      case 'unauthenticated':
+        return 'Yorum göndermeye izin verilmedi.';
+
+      case 'unavailable':
+      case 'network-request-failed':
+        return 'Bağlantını kontrol edip tekrar dene.';
+
+      default:
+        return error.message?.trim().isNotEmpty == true
+            ? error.message!.trim()
+            : 'Yorum gönderilemedi.';
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final double bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final theme = Theme.of(context);
 
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            height: MediaQuery.of(context).size.height * 0.65 + bottomPadding,
-            padding: EdgeInsets.only(bottom: bottomPadding),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0E15).withOpacity(0.85),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(top: BorderSide(color: const Color(0xFF9D4EDD).withOpacity(0.4), width: 1.5)),
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
+    final panelHeight = screenHeight * 0.72;
+
+    return AnimatedPadding(
+      duration: HexaMotion.normal,
+      curve: HexaMotion.emphasized,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(
+          height: panelHeight,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(HexaRadius.lg),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('YORUMLAR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      Text('C: $_userCoins', style: const TextStyle(color: Color(0xFFFF5E00), fontWeight: FontWeight.bold)),
-                    ],
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: HexaColors.earth.withAlpha(222),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(HexaRadius.lg),
+                  ),
+                  border: Border(
+                    top: BorderSide(color: HexaColors.white.withAlpha(36)),
                   ),
                 ),
-                const Divider(color: Color(0xFF1F2031), height: 1),
-                
-                Expanded(child: CommentListView(videoId: widget.videoId)),
-                
-                StickerShopBar(stickers: _luxuryStickers, onStickerTap: _handleStickerTap),
-                
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  color: const Color(0xFF0D0E15),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _commentController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Siber dünyaya bir yorum bırak...',
-                            hintStyle: const TextStyle(color: Color(0xFF4E516B)),
-                            filled: true,
-                            fillColor: const Color(0xFF181926),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.send, color: Color(0xFFFF5E00)),
-                        onPressed: () {
-                          if (_commentController.text.trim().isNotEmpty) {
-                            _postComment(_commentController.text.trim());
-                            _commentController.clear();
-                          }
-                        },
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: <Widget>[
+                      const _CommentSheetHeader(),
+                      Expanded(child: CommentListView(videoId: widget.videoId)),
+                      _CommentComposer(
+                        controller: _commentController,
+                        focusNode: _commentFocusNode,
+                        isFocused: _isFocused,
+                        isPosting: _isPosting,
+                        onSubmit: _postComment,
+                        onOpenArtifacts: widget.onOpenArtifacts,
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          if (_activeFlyingSticker.isNotEmpty)
-            IgnorePointer(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Text(_activeFlyingSticker, style: const TextStyle(fontSize: 80)),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentSheetHeader extends StatelessWidget {
+  const _CommentSheetHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        HexaSpacing.md,
+        HexaSpacing.sm,
+        HexaSpacing.md,
+        HexaSpacing.sm,
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 38,
+            height: 3,
+            decoration: BoxDecoration(
+              color: HexaColors.white.withAlpha(76),
+              borderRadius: HexaRadius.borderPill,
+            ),
+          ),
+          const SizedBox(height: HexaSpacing.md),
+          Row(
+            children: <Widget>[
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: HexaColors.hopePink,
+                  shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(color: HexaColors.signalGlow, blurRadius: 11),
+                  ],
+                ),
+              ),
+              const SizedBox(width: HexaSpacing.sm),
+              Text(
+                'Yorumlar',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: HexaColors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _CommentComposer extends StatelessWidget {
+  const _CommentComposer({
+    required this.controller,
+    required this.focusNode,
+    required this.isFocused,
+    required this.isPosting,
+    required this.onSubmit,
+    required this.onOpenArtifacts,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+
+  final bool isFocused;
+  final bool isPosting;
+
+  final VoidCallback onSubmit;
+  final VoidCallback? onOpenArtifacts;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        final canSend = value.text.trim().isNotEmpty && !isPosting;
+
+        return AnimatedContainer(
+          duration: reduceMotion ? Duration.zero : HexaMotion.normal,
+          curve: HexaMotion.emphasized,
+          margin: const EdgeInsets.all(HexaSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(
+            HexaSpacing.sm,
+            HexaSpacing.xs,
+            HexaSpacing.xs,
+            HexaSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: HexaColors.white.withAlpha(18),
+            borderRadius: HexaRadius.borderLg,
+            border: Border.all(
+              color: isFocused
+                  ? HexaColors.signal
+                  : HexaColors.white.withAlpha(30),
+              width: isFocused ? 1.4 : 1,
+            ),
+            boxShadow: isFocused ? HexaShadows.signal : HexaShadows.none,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              if (onOpenArtifacts != null)
+                IconButton(
+                  tooltip: 'Artefakt gönder',
+                  onPressed: isPosting ? null : onOpenArtifacts,
+                  icon: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: HexaColors.hopePink,
+                    size: 20,
+                  ),
+                ),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  enabled: !isPosting,
+                  minLines: 1,
+                  maxLines: 4,
+                  maxLength: 500,
+                  textCapitalization: TextCapitalization.sentences,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(
+                    color: HexaColors.white,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                  buildCounter:
+                      (
+                        context, {
+                        required currentLength,
+                        required isFocused,
+                        required maxLength,
+                      }) {
+                        return null;
+                      },
+                  decoration: const InputDecoration(
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    hintText: 'Bir iz bırak…',
+                    hintStyle: TextStyle(color: HexaColors.inkSoftOnDark),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: HexaSpacing.xs,
+                      vertical: HexaSpacing.sm,
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedOpacity(
+                opacity: canSend ? 1 : 0.35,
+                duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+                child: IconButton(
+                  tooltip: 'Yorumu gönder',
+                  onPressed: canSend ? onSubmit : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: canSend
+                        ? HexaColors.signal
+                        : HexaColors.white.withAlpha(18),
+                    foregroundColor: HexaColors.white,
+                  ),
+                  icon: isPosting
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: HexaColors.white,
+                          ),
+                        )
+                      : const Icon(Icons.arrow_upward_rounded, size: 19),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

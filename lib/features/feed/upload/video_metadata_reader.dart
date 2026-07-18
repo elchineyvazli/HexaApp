@@ -35,9 +35,9 @@ class VideoMetadataReader {
     final controller = VideoPlayerController.file(videoFile);
 
     try {
-      await controller
-          .initialize()
-          .timeout(VideoUploadLimits.metadataReadTimeout);
+      await controller.initialize().timeout(
+        VideoUploadLimits.metadataReadTimeout,
+      );
 
       final value = controller.value;
 
@@ -95,9 +95,7 @@ class VideoMetadataReader {
 
   void _validateDuration(Duration duration) {
     if (duration < VideoUploadLimits.minDuration) {
-      throw const VideoMetadataReadException(
-        'Video en az 1 saniye olmalı.',
-      );
+      throw const VideoMetadataReadException('Video en az 1 saniye olmalı.');
     }
 
     if (duration > VideoUploadLimits.maxDuration) {
@@ -121,10 +119,7 @@ class VideoMetadataReader {
     }
   }
 
-  void _validateRoundedDimensions({
-    required int width,
-    required int height,
-  }) {
+  void _validateRoundedDimensions({required int width, required int height}) {
     if (width <= 0 ||
         height <= 0 ||
         width > VideoUploadLimits.maxDimension ||

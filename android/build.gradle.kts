@@ -5,17 +5,22 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
+val sharedBuildDirectory =
     rootProject.layout.buildDirectory
         .dir("../../build")
         .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+
+rootProject.layout.buildDirectory.set(sharedBuildDirectory)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    project.layout.buildDirectory.set(
+        sharedBuildDirectory.dir(project.name),
+    )
 }
+
 subprojects {
+    // Flutter pluginlerinin uygulama yapılandırmasını doğru sırada
+    // görebilmesi için mevcut davranışı koruyoruz.
     project.evaluationDependsOn(":app")
 }
 

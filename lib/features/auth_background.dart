@@ -26,9 +26,9 @@ class AuthService {
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
     required UserRepository userRepository,
-  })  : _auth = auth,
-        _googleSignIn = googleSignIn,
-        _userRepository = userRepository;
+  }) : _auth = auth,
+       _googleSignIn = googleSignIn,
+       _userRepository = userRepository;
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
@@ -44,11 +44,7 @@ class AuthService {
     if (kIsWeb) {
       final googleProvider = GoogleAuthProvider()
         ..addScope('email')
-        ..setCustomParameters(
-          const {
-            'prompt': 'select_account',
-          },
-        );
+        ..setCustomParameters(const {'prompt': 'select_account'});
 
       userCredential = await _auth.signInWithPopup(googleProvider);
     } else {
@@ -74,7 +70,7 @@ class AuthService {
     }
 
     try {
-      await _userRepository.createUserInFirestore(user);
+      await _userRepository.ensureUserDocument(user);
     } catch (_) {
       // Kullanıcı belgesi oluşturulamadığında yarım bir oturum bırakmayız.
       await _auth.signOut();

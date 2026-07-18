@@ -1,15 +1,20 @@
-import 'dart:ui';
+import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/theme/hexa_theme.dart';
+
 class VideoSurface extends StatelessWidget {
   const VideoSurface({
-    super.key,
     required this.controller,
     required this.isInitialized,
     required this.thumbnailUrl,
     required this.metadataAspectRatio,
+    this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
+    super.key,
   });
 
   final VideoPlayerController? controller;
@@ -17,84 +22,122 @@ class VideoSurface extends StatelessWidget {
   final String thumbnailUrl;
   final double? metadataAspectRatio;
 
+  final BoxFit fit;
+  final Alignment alignment;
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final viewportSize = _viewportSize(constraints);
-        final aspectRatio = _resolveAspectRatio();
-        final videoDisplaySize = _fitInsideViewport(
-          viewport: viewportSize,
-          aspectRatio: aspectRatio,
-        );
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+    final currentController = controller;
 
-        final fillsViewport =
-            (videoDisplaySize.width - viewportSize.width).abs() < 1 &&
-            (videoDisplaySize.height - viewportSize.height).abs() < 1;
+    final showVideo =
+        isInitialized &&
+        currentController != null &&
+        currentController.value.isInitialized;
 
-        return ClipRect(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _VideoBackdrop(thumbnailUrl: thumbnailUrl),
-              Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  width: videoDisplaySize.width,
-                  height: videoDisplaySize.height,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2F1713),
-                    borderRadius: BorderRadius.circular(fillsViewport ? 0 : 18),
-                  ),
-                  child: _buildMedia(aspectRatio),
+    final mediaKey = showVideo
+        ? 'video-${currentController.dataSource}'
+        : 'thumbnail-${thumbnailUrl.trim()}';
+
+    return RepaintBoundary(
+      child: ColoredBox(
+        color: HexaColors.earth,
+        child: ClipRect(
+          child: AnimatedSwitcher(
+            duration: reduceMotion ? Duration.zero : HexaMotion.normal,
+            reverseDuration: reduceMotion ? Duration.zero : HexaMotion.fast,
+            switchInCurve: HexaMotion.enter,
+            switchOutCurve: HexaMotion.exit,
+            transitionBuilder: (child, animation) {
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: HexaMotion.enter,
+                reverseCurve: HexaMotion.exit,
+              );
+
+              return FadeTransition(
+                opacity: curvedAnimation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.008),
+                    end: Offset.zero,
+                  ).animate(curvedAnimation),
+                  child: child,
                 ),
-              ),
-            ],
+              );
+            },
+            child: SizedBox.expand(
+              key: ValueKey<String>(mediaKey),
+              child: showVideo
+                  ? _buildVideo(currentController)
+                  : _buildThumbnail(context, reduceMotion: reduceMotion),
+            ),
           ),
-        );
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideo(VideoPlayerController currentController) {
+    final mediaSize = _resolveMediaSize(currentController);
+
+    return FittedBox(
+      fit: fit,
+      alignment: alignment,
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: mediaSize.width,
+        height: mediaSize.height,
+        child: VideoPlayer(currentController),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(BuildContext context, {required bool reduceMotion}) {
+    final normalizedUrl = thumbnailUrl.trim();
+
+    if (normalizedUrl.isEmpty) {
+      return const _VideoPlaceholder();
+    }
+
+    return CachedNetworkImage(
+      imageUrl: normalizedUrl,
+      width: double.infinity,
+      height: double.infinity,
+      fit: fit,
+      alignment: alignment,
+      filterQuality: FilterQuality.medium,
+      fadeInDuration: reduceMotion ? Duration.zero : HexaMotion.normal,
+      fadeOutDuration: reduceMotion ? Duration.zero : HexaMotion.fast,
+      placeholder: (_, __) {
+        return const _VideoPlaceholder();
+      },
+      errorWidget: (_, __, ___) {
+        return const _VideoPlaceholder(hasError: true);
       },
     );
   }
 
-  Widget _buildMedia(double aspectRatio) {
-    final currentController = controller;
+  Size _resolveMediaSize(VideoPlayerController currentController) {
+    final runtimeSize = currentController.value.size;
 
-    if (isInitialized &&
-        currentController != null &&
-        currentController.value.isInitialized) {
-      return AspectRatio(
-        aspectRatio: aspectRatio,
-        child: VideoPlayer(currentController),
-      );
+    if (runtimeSize.width > 0 && runtimeSize.height > 0) {
+      return runtimeSize;
     }
 
-    final normalizedThumbnailUrl = thumbnailUrl.trim();
+    const fallbackHeight = 1000.0;
 
-    if (normalizedThumbnailUrl.isNotEmpty) {
-      return Image.network(
-        normalizedThumbnailUrl,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) {
-          return const _VideoPlaceholder();
-        },
-      );
-    }
-
-    return const _VideoPlaceholder();
+    return Size(fallbackHeight * _resolveAspectRatio(), fallbackHeight);
   }
 
   double _resolveAspectRatio() {
     final currentController = controller;
 
     if (isInitialized && currentController != null) {
-      final videoSize = currentController.value.size;
+      final runtimeSize = currentController.value.size;
 
-      if (videoSize.width > 0 && videoSize.height > 0) {
-        final runtimeRatio = videoSize.width / videoSize.height;
+      if (runtimeSize.width > 0 && runtimeSize.height > 0) {
+        final runtimeRatio = runtimeSize.width / runtimeSize.height;
 
         if (_isValidAspectRatio(runtimeRatio)) {
           return runtimeRatio;
@@ -111,105 +154,162 @@ class VideoSurface extends StatelessWidget {
     return 9 / 16;
   }
 
-  Size _viewportSize(BoxConstraints constraints) {
-    final width = constraints.hasBoundedWidth && constraints.maxWidth > 0
-        ? constraints.maxWidth
-        : 360.0;
-
-    final height = constraints.hasBoundedHeight && constraints.maxHeight > 0
-        ? constraints.maxHeight
-        : 640.0;
-
-    return Size(width, height);
-  }
-
-  Size _fitInsideViewport({
-    required Size viewport,
-    required double aspectRatio,
-  }) {
-    final heightWhenUsingFullWidth = viewport.width / aspectRatio;
-
-    if (heightWhenUsingFullWidth <= viewport.height) {
-      return Size(viewport.width, heightWhenUsingFullWidth);
-    }
-
-    final widthWhenUsingFullHeight = viewport.height * aspectRatio;
-
-    return Size(widthWhenUsingFullHeight, viewport.height);
-  }
-
   bool _isValidAspectRatio(double value) {
     return value.isFinite && value >= 0.2 && value <= 5;
   }
 }
 
-class _VideoBackdrop extends StatelessWidget {
-  const _VideoBackdrop({required this.thumbnailUrl});
+class _VideoPlaceholder extends StatefulWidget {
+  const _VideoPlaceholder({this.hasError = false});
 
-  final String thumbnailUrl;
+  final bool hasError;
+
+  @override
+  State<_VideoPlaceholder> createState() {
+    return _VideoPlaceholderState();
+  }
+}
+
+class _VideoPlaceholderState extends State<_VideoPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: HexaMotion.breathe * 4,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (HexaMotion.reduceMotionOf(context) || widget.hasError) {
+      _controller
+        ..stop()
+        ..value = 0.12;
+      return;
+    }
+
+    if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoPlaceholder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.hasError != widget.hasError) {
+      if (widget.hasError) {
+        _controller
+          ..stop()
+          ..value = 0.12;
+      } else if (!HexaMotion.reduceMotionOf(context)) {
+        _controller.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final normalizedThumbnailUrl = thumbnailUrl.trim();
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFFB9BBD),
-                Color(0xFFB15090),
-                Color(0xFF601F24),
-                Color(0xFF2F1713),
-              ],
-            ),
-          ),
-        ),
-        if (normalizedThumbnailUrl.isNotEmpty)
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-            child: Transform.scale(
-              scale: 1.16,
-              child: Image.network(
-                normalizedThumbnailUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) {
-                  return const SizedBox.shrink();
-                },
+    return ColoredBox(
+      color: HexaColors.earth,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return CustomPaint(
+              size: const Size.square(72),
+              painter: _MediaPlaceholderPainter(
+                phase: _controller.value,
+                hasError: widget.hasError,
               ),
-            ),
-          ),
-        const ColoredBox(color: Color(0x331A1010)),
-      ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
 
-class _VideoPlaceholder extends StatelessWidget {
-  const _VideoPlaceholder();
+class _MediaPlaceholderPainter extends CustomPainter {
+  const _MediaPlaceholderPainter({required this.phase, required this.hasError});
+
+  final double phase;
+  final bool hasError;
 
   @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFB9BBD),
-            Color(0xFFC575B1),
-            Color(0xFF833C69),
-            Color(0xFF601F24),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(Icons.favorite_rounded, color: Color(0xD9FFFFFF), size: 42),
-      ),
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide * 0.31;
+
+    final glowPaint = Paint()
+      ..color = (hasError ? HexaColors.error : HexaColors.signal).withAlpha(34)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12;
+
+    final path = _hexagonPath(center: center, radius: radius);
+
+    canvas.drawPath(path, glowPaint);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(phase * math.pi * 2);
+    canvas.translate(-center.dx, -center.dy);
+
+    final linePaint = Paint()
+      ..color = (hasError ? HexaColors.error : HexaColors.hopePink).withAlpha(
+        hasError ? 170 : 115,
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, linePaint);
+    canvas.restore();
+
+    canvas.drawCircle(
+      center,
+      2.8,
+      Paint()..color = hasError ? HexaColors.error : HexaColors.hopePink,
     );
+  }
+
+  Path _hexagonPath({required Offset center, required double radius}) {
+    final path = Path();
+
+    for (var index = 0; index < 6; index++) {
+      final angle = -math.pi / 2 + index * math.pi / 3;
+
+      final point = Offset(
+        center.dx + math.cos(angle) * radius,
+        center.dy + math.sin(angle) * radius,
+      );
+
+      if (index == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    return path..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MediaPlaceholderPainter oldDelegate) {
+    return oldDelegate.phase != phase || oldDelegate.hasError != hasError;
   }
 }

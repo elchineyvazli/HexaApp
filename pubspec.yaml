@@ -1,62 +1,108 @@
 name: hexa
-description: Hopeful vertical video and meaningful support social platform.
+description: A content-first vertical video platform built around hope, creativity, and meaningful support.
+publish_to: "none"
+
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.10.0 <4.0.0'
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # State Management & DI
-  flutter_riverpod: ^2.4.9
-  riverpod_annotation: ^2.3.3
+  # ---------------------------------------------------------------------------
+  # State management
+  # ---------------------------------------------------------------------------
+  #
+  # Riverpod 2.x is kept temporarily so the existing controllers remain
+  # operational while Hexa is migrated feature by feature.
+  flutter_riverpod: 2.6.1
+  riverpod_annotation: 2.6.1
 
+  # ---------------------------------------------------------------------------
   # Navigation
+  # ---------------------------------------------------------------------------
   go_router: ^13.2.0
 
-  # Backend & Auth
-  firebase_core: ^4.11.0
-  firebase_auth: ^6.5.4
-  cloud_firestore: ^6.6.0
-  firebase_storage: ^13.4.3
-  google_sign_in: 6.3.0
+  # ---------------------------------------------------------------------------
+  # Firebase
+  # ---------------------------------------------------------------------------
+  firebase_core: ^4.12.1
+  firebase_auth: ^6.5.6
+  cloud_firestore: ^6.7.1
+  firebase_storage: ^13.4.5
 
-  # Media & Caching
-  video_player: ^2.11.1
+  # Kept on 6.x until auth_service.dart is migrated to the 7.x API.
+  google_sign_in: ^6.3.0
+
+  # ---------------------------------------------------------------------------
+  # Video and image media
+  # ---------------------------------------------------------------------------
+  video_player: 2.11.1
   video_thumbnail: ^0.5.6
-  just_audio: ^0.10.6
-  preload_page_view: ^0.1.5
-  flutter_cache_manager: ^3.3.1
-  cached_network_image: ^3.3.1
   image_picker: ^1.2.3
 
-  # Local preferences
-  shared_preferences: 2.3.5
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
 
+  # Temporary dependency.
+  # It will be removed when Feed gets its native video preload controller.
+  preload_page_view: ^0.2.0
+
+  # ---------------------------------------------------------------------------
+  # Ambient audio
+  # ---------------------------------------------------------------------------
+  just_audio: ^0.10.6
+  audio_session: ^0.2.4
+
+  # Used for the generated Hope Lo-fi WAV and temporary media files.
+  path_provider: ^2.1.6
+
+  # ---------------------------------------------------------------------------
+  # Local persistence
+  # ---------------------------------------------------------------------------
+  shared_preferences: ^2.5.5
+
+  # ---------------------------------------------------------------------------
   # Monetization
+  # ---------------------------------------------------------------------------
+  #
+  # RevenueCat 8.x is preserved until the reaction and coin system is rebuilt.
   purchases_flutter: 8.1.0
 
-  # UI & Effects
-  flutter_animate: ^4.5.0
-  google_fonts: ^6.1.0
+  # ---------------------------------------------------------------------------
+  # UI and motion
+  # ---------------------------------------------------------------------------
+  flutter_animate: ^4.5.2
+  google_fonts: ^8.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  riverpod_generator: ^2.3.9
+
+  flutter_lints: ^6.0.0
+
+  # Riverpod 2.x compatible generator stack.
+  riverpod_generator: 2.6.4
   build_runner: ^2.4.8
+
   flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/icon/Hexa_Logo.png
+
 flutter_launcher_icons:
   android: true
   ios: false
-  min_sdk_android: 23
+
+  # The actual Android minSdk will also be updated in:
+  # android/app/build.gradle.kts
+  min_sdk_android: 24
 
   image_path: "assets/icon/Hexa_Logo.png"
 
@@ -64,4 +110,4 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icon/Hexa_Logo.png"
     background_color: "#FFF7FA"
-    theme_color: "#833C69"  
+    theme_color: "#833C69"
