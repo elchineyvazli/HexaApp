@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,16 +17,17 @@ class HexaApp extends ConsumerWidget {
 
     final themeAnimationDuration = settings.reduceMotion
         ? Duration.zero
-        : HexaMotion.normal;
+        : const Duration(milliseconds: 220);
 
     return MaterialApp.router(
-      title: 'Hexa',
+      title: 'HEXA',
       debugShowCheckedModeBanner: false,
       theme: settings.lightTheme,
       darkTheme: settings.darkTheme,
       themeMode: settings.materialThemeMode,
       themeAnimationDuration: themeAnimationDuration,
-      themeAnimationCurve: HexaMotion.emphasized,
+      themeAnimationCurve: Curves.easeOutCubic,
+      scrollBehavior: const _HexaScrollBehavior(),
       routerConfig: router,
       builder: (context, child) {
         final theme = Theme.of(context);
@@ -55,13 +54,17 @@ class HexaApp extends ConsumerWidget {
 
     final iconBrightness = isDark ? Brightness.light : Brightness.dark;
 
+    final navigationBarColor = isDark
+        ? HexaColors.backgroundDark
+        : theme.scaffoldBackgroundColor;
+
     return SystemUiOverlayStyle(
-      statusBarColor: HexaColors.transparent,
+      statusBarColor: Colors.transparent,
       statusBarIconBrightness: iconBrightness,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      systemNavigationBarColor: theme.scaffoldBackgroundColor,
+      systemNavigationBarColor: navigationBarColor,
       systemNavigationBarIconBrightness: iconBrightness,
-      systemNavigationBarDividerColor: HexaColors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
       systemNavigationBarContrastEnforced: false,
     );
   }
@@ -80,110 +83,96 @@ class HexaStartupFailureApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hexa',
+      title: 'HEXA',
       debugShowCheckedModeBanner: false,
-      theme: HexaTheme.lightTheme,
+      theme: HexaTheme.darkTheme,
       darkTheme: HexaTheme.darkTheme,
+      themeMode: ThemeMode.dark,
+      scrollBehavior: const _HexaScrollBehavior(),
       home: _StartupFailureView(error: error, stackTrace: stackTrace),
     );
   }
 }
 
-class _StartupFailureView extends StatefulWidget {
+class _StartupFailureView extends StatelessWidget {
   const _StartupFailureView({required this.error, this.stackTrace});
 
   final Object error;
   final StackTrace? stackTrace;
 
   @override
-  State<_StartupFailureView> createState() {
-    return _StartupFailureViewState();
-  }
-}
-
-class _StartupFailureViewState extends State<_StartupFailureView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _energyController;
-
-  bool _reduceMotion = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _energyController = AnimationController(
-      vsync: this,
-      duration: HexaMotion.ambient,
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final shouldReduce = HexaMotion.reduceMotionOf(context);
-
-    if (shouldReduce == _reduceMotion && _energyController.isAnimating) {
-      return;
-    }
-
-    _reduceMotion = shouldReduce;
-
-    if (_reduceMotion) {
-      _energyController
-        ..stop()
-        ..value = 0.18;
-    } else if (!_energyController.isAnimating) {
-      _energyController.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _energyController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: HexaGradients.pageFor(theme.brightness),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: HexaSpacing.pageInsets,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildEnergyMark(theme),
-                    const SizedBox(height: HexaSpacing.xl),
-                    Text(
-                      'Başlangıç sinyali kurulamadı',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: HexaSpacing.sm),
-                    Text(
-                      'Hexa çekirdeği Firebase bağlantısını '
-                      'tamamlayamadı. Uygulama yapılandırmasını '
-                      'kontrol edip yeniden aç.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: HexaColors.backgroundDark,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: HexaColors.backgroundDark,
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Color(0xFF0A0A0F),
+                HexaColors.backgroundDark,
+                HexaColors.backgroundDark,
+              ],
+              stops: <double>[0, 0.38, 1],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 36,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const _StartupFailureMark(),
+                      const SizedBox(height: 28),
+                      const Text(
+                        'HEXA başlatılamadı',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: HexaColors.inkOnDark,
+                          fontSize: 24,
+                          height: 1.12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.65,
+                        ),
                       ),
-                    ),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: HexaSpacing.xl),
-                      _buildDebugDetails(theme),
+                      const SizedBox(height: 11),
+                      const Text(
+                        'Uygulama gerekli bağlantıları kuramadı. İnternet bağlantını ve uygulama yapılandırmasını kontrol edip yeniden aç.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0x80FFFFFF),
+                          fontSize: 13.5,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: -0.10,
+                        ),
+                      ),
+                      if (kDebugMode) ...<Widget>[
+                        const SizedBox(height: 30),
+                        _StartupDebugDetails(
+                          error: error,
+                          stackTrace: stackTrace,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -192,145 +181,136 @@ class _StartupFailureViewState extends State<_StartupFailureView>
       ),
     );
   }
+}
 
-  Widget _buildEnergyMark(ThemeData theme) {
+class _StartupFailureMark extends StatelessWidget {
+  const _StartupFailureMark();
+
+  @override
+  Widget build(BuildContext context) {
     return Semantics(
-      label: 'Hexa başlangıç hatası',
-      child: AnimatedBuilder(
-        animation: _energyController,
-        builder: (context, child) {
-          final progress = _energyController.value;
-
-          final pulse = _reduceMotion
-              ? 1.0
-              : 0.985 + math.sin(progress * math.pi * 2) * 0.015;
-
-          return Transform.scale(
-            scale: pulse,
-            child: SizedBox.square(
-              dimension: 124,
-              child: CustomPaint(
-                painter: _StartupHexagonPainter(
-                  progress: progress,
-                  signalColor: theme.colorScheme.primary,
-                ),
-              ),
+      image: true,
+      label: 'HEXA başlangıç hatası',
+      child: Container(
+        width: 78,
+        height: 78,
+        padding: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          gradient: HexaGradients.signal,
+          borderRadius: BorderRadius.circular(27),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x248B5CF6),
+              blurRadius: 30,
+              spreadRadius: -8,
             ),
-          );
-        },
+          ],
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: HexaColors.surfaceDark,
+            borderRadius: BorderRadius.circular(25.5),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              Icon(
+                Icons.hexagon_outlined,
+                color: HexaColors.purpleSoft,
+                size: 43,
+              ),
+              Icon(
+                Icons.priority_high_rounded,
+                color: Colors.white.withOpacity(0.92),
+                size: 18,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildDebugDetails(ThemeData theme) {
-    final buffer = StringBuffer()..writeln(widget.error);
+class _StartupDebugDetails extends StatelessWidget {
+  const _StartupDebugDetails({required this.error, this.stackTrace});
 
-    if (widget.stackTrace != null) {
+  final Object error;
+  final StackTrace? stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    final buffer = StringBuffer()..writeln(error);
+
+    if (stackTrace != null) {
       buffer
         ..writeln()
-        ..write(widget.stackTrace);
+        ..write(stackTrace);
     }
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(maxHeight: 180),
-      padding: const EdgeInsets.all(HexaSpacing.md),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: HexaRadius.borderMd,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: HexaColors.surfaceDark,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
-      child: SingleChildScrollView(
-        child: SelectableText(
-          buffer.toString(),
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontFamily: 'monospace',
-            color: theme.colorScheme.onSurfaceVariant,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                Icons.code_rounded,
+                color: Colors.white.withOpacity(0.52),
+                size: 17,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Teknik ayrıntılar',
+                style: TextStyle(
+                  color: Color(0xBFFFFFFF),
+                  fontSize: 12,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.06,
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 11),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                buffer.toString(),
+                style: const TextStyle(
+                  color: Color(0x70FFFFFF),
+                  fontFamily: 'monospace',
+                  fontSize: 10.5,
+                  height: 1.45,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StartupHexagonPainter extends CustomPainter {
-  const _StartupHexagonPainter({
-    required this.progress,
-    required this.signalColor,
-  });
-
-  final double progress;
-  final Color signalColor;
+class _HexaScrollBehavior extends MaterialScrollBehavior {
+  const _HexaScrollBehavior();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide * 0.31;
-
-    final glowRect = Rect.fromCircle(center: center, radius: radius * 1.65);
-
-    final glowPaint = Paint()
-      ..shader = const RadialGradient(
-        colors: <Color>[HexaColors.signalGlow, HexaColors.transparent],
-      ).createShader(glowRect);
-
-    canvas.drawCircle(center, radius * 1.65, glowPaint);
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(progress * math.pi * 2);
-    canvas.translate(-center.dx, -center.dy);
-
-    final outerPaint = Paint()
-      ..color = signalColor.withAlpha(92)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(
-      _hexagonPath(center: center, radius: radius * 1.35),
-      outerPaint,
-    );
-
-    canvas.restore();
-
-    final corePaint = Paint()
-      ..color = signalColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(_hexagonPath(center: center, radius: radius), corePaint);
-
-    final centerPaint = Paint()..color = HexaColors.hopePink;
-
-    canvas.drawCircle(center, 4, centerPaint);
-  }
-
-  Path _hexagonPath({required Offset center, required double radius}) {
-    final path = Path();
-
-    for (var index = 0; index < 6; index++) {
-      final angle = -math.pi / 2 + index * math.pi / 3;
-
-      final point = Offset(
-        center.dx + math.cos(angle) * radius,
-        center.dy + math.sin(angle) * radius,
-      );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    return path..close();
-  }
-
-  @override
-  bool shouldRepaint(covariant _StartupHexagonPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.signalColor != signalColor;
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../feed_repository.dart';
 
 class FeedSearchBar extends ConsumerStatefulWidget {
-  const FeedSearchBar({super.key, this.dismissToken = 0, this.onFocusChanged});
+  const FeedSearchBar({this.dismissToken = 0, this.onFocusChanged, super.key});
 
   final int dismissToken;
   final ValueChanged<bool>? onFocusChanged;
@@ -18,18 +17,14 @@ class FeedSearchBar extends ConsumerStatefulWidget {
   }
 }
 
-class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
-    with TickerProviderStateMixin {
+class _FeedSearchBarState extends ConsumerState<FeedSearchBar> {
+  static const Color _surfaceColor = Color(0xE6111116);
+  static const Color _accentColor = Color(0xFF8B5CF6);
+
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
   bool _isFocused = false;
-
-  // ---- Animasyon kontrolcüleri ----
-  late final AnimationController _shimmerController;
-  late final Animation<double> _shimmerAnimation;
-  late final AnimationController _glowController;
-  late final Animation<double> _glowAnimation;
 
   @override
   void initState() {
@@ -37,26 +32,6 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
 
     _controller.text = ref.read(searchQueryProvider);
     _focusNode.addListener(_handleFocusChanged);
-
-    // Şeffaf durumda süzülen ışık efekti
-    _shimmerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat();
-    _shimmerAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
-      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
-    );
-
-    // Odaklanınca parlayan aura
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _glowAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
-    _glowController.value = 0.0;
   }
 
   @override
@@ -73,8 +48,7 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
     _focusNode.removeListener(_handleFocusChanged);
     _focusNode.dispose();
     _controller.dispose();
-    _shimmerController.dispose();
-    _glowController.dispose();
+
     super.dispose();
   }
 
@@ -90,13 +64,6 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
     });
 
     widget.onFocusChanged?.call(nextFocused);
-
-    // Glow animasyonunu tetikle
-    if (nextFocused) {
-      _glowController.forward();
-    } else {
-      _glowController.reverse();
-    }
   }
 
   void _collapse() {
@@ -107,15 +74,21 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
 
   void _clearQuery() {
     _controller.clear();
+
     ref.read(searchQueryProvider.notifier).state = '';
+
     setState(() {});
+
     _focusNode.requestFocus();
   }
 
   void _changeSearchType(SearchType type) {
     ref.read(searchTypeProvider.notifier).state = type;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
     });
   }
 
@@ -126,7 +99,10 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
     final hasQuery = currentQuery.trim().isNotEmpty;
 
     ref.listen<String>(searchQueryProvider, (previous, next) {
-      if (_controller.text == next) return;
+      if (_controller.text == next) {
+        return;
+      }
+
       _controller.value = TextEditingValue(
         text: next,
         selection: TextSelection.collapsed(offset: next.length),
@@ -134,188 +110,187 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
     });
 
     return Positioned(
-      top: MediaQuery.paddingOf(context).top + 10,
-      left: 12,
-      right: 12,
+      top: MediaQuery.paddingOf(context).top + 12,
+      left: 16,
+      right: 16,
       child: TapRegion(
-        onTapOutside: (_) => _collapse(),
+        onTapOutside: (_) {
+          _collapse();
+        },
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final passiveWidth = hasQuery ? 210.0 : 164.0;
+            final passiveWidth = hasQuery ? 228.0 : 176.0;
+
+            final targetWidth = _isFocused
+                ? constraints.maxWidth
+                : passiveWidth > constraints.maxWidth
+                ? constraints.maxWidth
+                : passiveWidth;
 
             return Align(
               alignment: Alignment.topCenter,
-              child: AnimatedBuilder(
-                animation: Listenable.merge([
-                  _glowController,
-                  _shimmerController,
-                ]),
-                builder: (context, child) {
-                  final glowOpacity = _glowAnimation.value;
-                  final shimmerPos = _shimmerAnimation.value;
-
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 240),
-                    curve: Curves.easeOutCubic,
-                    width: _isFocused
-                        ? constraints.maxWidth
-                        : passiveWidth.clamp(140.0, constraints.maxWidth),
-                    height: _isFocused ? 52 : 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      // Odaklıyken hafifçe parlayan dış aura
-                      boxShadow: [
-                        if (glowOpacity > 0.01)
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.15 * glowOpacity),
-                            blurRadius: 28 * glowOpacity,
-                            spreadRadius: 2 * glowOpacity,
-                          ),
-                        if (_isFocused)
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 22,
-                            offset: const Offset(0, 8),
-                          ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: Stack(
-                        children: [
-                          // Arka plan cam efekti
-                          BackdropFilter(
-                            filter: ImageFilter.blur(
-                              sigmaX: _isFocused ? 20 : 10,
-                              sigmaY: _isFocused ? 20 : 10,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                opacity: _isFocused ? 1 : 0.10,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  width: targetWidth,
+                  height: _isFocused ? 52 : 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: _isFocused
+                        ? const <BoxShadow>[
+                            BoxShadow(
+                              color: Color(0x52000000),
+                              blurRadius: 24,
+                              offset: Offset(0, 10),
                             ),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 240),
-                              curve: Curves.easeOutCubic,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(
-                                  alpha: _isFocused ? 0.82 : 0.10,
+                          ]
+                        : const <BoxShadow>[],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: _isFocused ? 22 : 12,
+                        sigmaY: _isFocused ? 22 : 12,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        padding: EdgeInsets.only(
+                          left: _isFocused ? 16 : 14,
+                          right: _isFocused ? 8 : 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _isFocused
+                              ? _surfaceColor
+                              : Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: _isFocused
+                                ? Colors.white.withValues(alpha: 0.14)
+                                : Colors.white.withValues(alpha: 0.20),
+                          ),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.search_rounded,
+                                size: _isFocused ? 21 : 20,
+                                color: Colors.white.withValues(
+                                  alpha: _isFocused ? 0.90 : 0.76,
                                 ),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _controller,
+                                focusNode: _focusNode,
+                                cursorColor: _accentColor,
+                                cursorWidth: 1.6,
+                                textInputAction: TextInputAction.search,
+                                textCapitalization: TextCapitalization.none,
+                                style: TextStyle(
                                   color: Colors.white.withValues(
-                                    alpha: _isFocused ? 0.20 : 0.07,
+                                    alpha: _isFocused ? 0.96 : 0.82,
                                   ),
+                                  fontSize: 14,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: -0.15,
+                                ),
+                                onChanged: (value) {
+                                  ref.read(searchQueryProvider.notifier).state =
+                                      value;
+
+                                  setState(() {});
+                                },
+                                onSubmitted: (_) {
+                                  _collapse();
+                                },
+                                decoration: InputDecoration(
+                                  hintText: _isFocused
+                                      ? _hintForType(searchType)
+                                      : 'Ara',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withValues(
+                                      alpha: _isFocused ? 0.42 : 0.68,
+                                    ),
+                                    fontSize: 14,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: -0.15,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  isCollapsed: true,
                                 ),
                               ),
                             ),
-                          ),
-                          // Hafif süzülen ışık (pasif durumda)
-                          if (!_isFocused)
-                            Positioned.fill(
-                              child: Align(
-                                alignment: Alignment(shimmerPos, 0.0),
-                                child: FractionallySizedBox(
-                                  widthFactor: 0.6,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.white.withOpacity(0.0),
-                                          Colors.white.withOpacity(0.08),
-                                          Colors.white.withOpacity(0.0),
-                                        ],
-                                        stops: const [0.0, 0.5, 1.0],
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 160),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              child: _isFocused && _controller.text.isNotEmpty
+                                  ? IconButton(
+                                      key: const ValueKey<String>(
+                                        'clear-search',
                                       ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          // İçerik
-                          Padding(
-                            padding: EdgeInsets.only(
-                              left: _isFocused ? 7.0 : 14.0,
-                              right: _isFocused ? 7.0 : 14.0,
-                            ),
-                            child: Row(
-                              children: [
-                                if (_isFocused)
-                                  _SearchTypeButton(
-                                    type: searchType,
-                                    onSelected: _changeSearchType,
-                                  )
-                                else
-                                  const Icon(
-                                    Icons.search_rounded,
-                                    color: Color(0x70FFFFFF),
-                                    size: 20,
-                                  ),
-                                SizedBox(width: _isFocused ? 5 : 9),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _controller,
-                                    focusNode: _focusNode,
-                                    cursorColor: Colors.white,
-                                    textInputAction: TextInputAction.search,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: _isFocused ? 1 : 0.58,
-                                      ),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    onChanged: (value) {
-                                      ref
-                                              .read(
-                                                searchQueryProvider.notifier,
-                                              )
-                                              .state =
-                                          value;
-                                      setState(() {});
-                                    },
-                                    onSubmitted: (_) => _collapse(),
-                                    decoration: InputDecoration(
-                                      hintText: _isFocused
-                                          ? _hintForType(searchType)
-                                          : 'Ara',
-                                      hintStyle: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: _isFocused ? 0.56 : 0.38,
-                                        ),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                ),
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 160),
-                                  child:
-                                      _isFocused && _controller.text.isNotEmpty
-                                      ? IconButton(
-                                          key: const ValueKey('clear-search'),
-                                          tooltip: 'Aramayı temizle',
-                                          onPressed: _clearQuery,
-                                          visualDensity: VisualDensity.compact,
-                                          icon: const Icon(
-                                            Icons.close_rounded,
-                                            color: Colors.white70,
-                                            size: 18,
+                                      tooltip: 'Aramayı temizle',
+                                      onPressed: _clearQuery,
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                            width: 34,
+                                            height: 34,
                                           ),
-                                        )
-                                      : const SizedBox.shrink(
-                                          key: ValueKey('empty-search-action'),
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.68,
                                         ),
-                                ),
-                              ],
+                                        size: 18,
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey<String>(
+                                        'empty-clear-action',
+                                      ),
+                                    ),
                             ),
-                          ),
-                        ],
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: _isFocused
+                                  ? _SearchTypeButton(
+                                      key: const ValueKey<String>(
+                                        'search-type-button',
+                                      ),
+                                      type: searchType,
+                                      onSelected: _changeSearchType,
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey<String>(
+                                        'empty-type-button',
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             );
           },
@@ -337,7 +312,11 @@ class _FeedSearchBarState extends ConsumerState<FeedSearchBar>
 }
 
 class _SearchTypeButton extends StatelessWidget {
-  const _SearchTypeButton({required this.type, required this.onSelected});
+  const _SearchTypeButton({
+    required this.type,
+    required this.onSelected,
+    super.key,
+  });
 
   final SearchType type;
   final ValueChanged<SearchType> onSelected;
@@ -348,22 +327,54 @@ class _SearchTypeButton extends StatelessWidget {
       tooltip: 'Arama türü',
       initialValue: type,
       onSelected: onSelected,
-      color: const Color(0xF21A1A1A),
+      color: const Color(0xFF17171C),
+      elevation: 0,
       position: PopupMenuPosition.under,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      offset: const Offset(0, 8),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 156, maxWidth: 180),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
+      ),
       itemBuilder: (context) {
         return SearchType.values
             .map((value) {
+              final isSelected = value == type;
+
               return PopupMenuItem<SearchType>(
                 value: value,
+                height: 46,
                 child: Row(
-                  children: [
-                    Icon(_iconForType(value), color: Colors.white70, size: 19),
-                    const SizedBox(width: 10),
-                    Text(
-                      _labelForType(value),
-                      style: const TextStyle(color: Colors.white),
+                  children: <Widget>[
+                    Icon(
+                      _iconForType(value),
+                      size: 19,
+                      color: isSelected
+                          ? const Color(0xFF8B5CF6)
+                          : Colors.white.withValues(alpha: 0.62),
                     ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        _labelForType(value),
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.72),
+                          fontSize: 14,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 17,
+                        color: Color(0xFF8B5CF6),
+                      ),
                   ],
                 ),
               );
@@ -371,9 +382,13 @@ class _SearchTypeButton extends StatelessWidget {
             .toList(growable: false);
       },
       child: SizedBox(
-        width: 38,
-        height: 38,
-        child: Icon(_iconForType(type), color: Colors.white, size: 20),
+        width: 34,
+        height: 34,
+        child: Icon(
+          Icons.tune_rounded,
+          color: Colors.white.withValues(alpha: 0.62),
+          size: 18,
+        ),
       ),
     );
   }

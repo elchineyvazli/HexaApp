@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +43,6 @@ class _VideoActionBarState extends State<VideoActionBar>
   late final AnimationController _controller;
 
   late final Animation<double> _opacity;
-  late final Animation<double> _scale;
   late final Animation<Offset> _slide;
 
   late final List<Animation<double>> _actionAnimations;
@@ -57,40 +55,33 @@ class _VideoActionBarState extends State<VideoActionBar>
 
     _controller = AnimationController(
       vsync: this,
-      duration: HexaMotion.slow,
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 220),
       value: widget.isVisible ? 1 : 0,
     );
 
     _opacity = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0, 0.42, curve: HexaMotion.enter),
-      reverseCurve: HexaMotion.exit,
+      curve: const Interval(0, 0.72, curve: Curves.easeOutCubic),
+      reverseCurve: Curves.easeInCubic,
     );
 
-    _scale = Tween<double>(begin: 0.94, end: 1).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: HexaMotion.emphasized,
-        reverseCurve: HexaMotion.exit,
-      ),
-    );
-
-    _slide = Tween<Offset>(begin: const Offset(0, 0.28), end: Offset.zero)
+    _slide = Tween<Offset>(begin: const Offset(0, 0.22), end: Offset.zero)
         .animate(
           CurvedAnimation(
             parent: _controller,
-            curve: HexaMotion.emphasized,
-            reverseCurve: HexaMotion.exit,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
           ),
         );
 
     _actionAnimations = List<Animation<double>>.generate(4, (index) {
-      final start = 0.16 + index * 0.1;
-      final end = (start + 0.46).clamp(0, 1).toDouble();
+      final start = 0.12 + index * 0.07;
+      final end = (start + 0.48).clamp(0.0, 1.0);
 
       return CurvedAnimation(
         parent: _controller,
-        curve: Interval(start, end, curve: HexaMotion.listEnter),
+        curve: Interval(start, end, curve: Curves.easeOutCubic),
       );
     }, growable: false);
   }
@@ -129,21 +120,22 @@ class _VideoActionBarState extends State<VideoActionBar>
   @override
   void dispose() {
     _controller.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: HexaSpacing.sm,
-      right: HexaSpacing.sm,
-      bottom: HexaSpacing.sm,
+      left: 12,
+      right: 12,
+      bottom: 8,
       child: SafeArea(
         top: false,
-        minimum: const EdgeInsets.only(bottom: HexaSpacing.xs),
+        minimum: const EdgeInsets.only(bottom: 4),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 410),
+            constraints: const BoxConstraints(maxWidth: 430),
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
@@ -152,17 +144,14 @@ class _VideoActionBarState extends State<VideoActionBar>
                 }
 
                 return IgnorePointer(
-                  ignoring: _controller.value < 0.72,
+                  ignoring: _controller.value < 0.68,
                   child: FadeTransition(
                     opacity: _opacity,
-                    child: SlideTransition(
-                      position: _slide,
-                      child: ScaleTransition(scale: _scale, child: child),
-                    ),
+                    child: SlideTransition(position: _slide, child: child),
                   ),
                 );
               },
-              child: _buildPanel(context),
+              child: _buildPanel(),
             ),
           ),
         ),
@@ -170,20 +159,25 @@ class _VideoActionBarState extends State<VideoActionBar>
     );
   }
 
-  Widget _buildPanel(BuildContext context) {
+  Widget _buildPanel() {
     return ClipRRect(
-      borderRadius: HexaRadius.borderLg,
+      borderRadius: BorderRadius.circular(26),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
         child: Container(
-          height: 70,
+          height: 86,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
-            color: HexaColors.earth.withAlpha(178),
-            borderRadius: HexaRadius.borderLg,
-            border: Border.all(color: HexaColors.white.withAlpha(34)),
-            boxShadow: widget.isLiked
-                ? HexaShadows.signal
-                : HexaShadows.floating,
+            color: const Color(0xEC111116),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: const Color(0x1FFFFFFF)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x73000000),
+                blurRadius: 30,
+                offset: Offset(0, 14),
+              ),
+            ],
           ),
           child: Row(
             children: <Widget>[
@@ -192,14 +186,14 @@ class _VideoActionBarState extends State<VideoActionBar>
                   animation: _actionAnimations[0],
                   child: _ActionSurface(
                     icon: widget.isLiked
-                        ? Icons.auto_awesome_rounded
-                        : Icons.auto_awesome_outlined,
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     semanticsLabel: widget.isLiked
-                        ? 'Hexa beğenisini kaldır'
-                        : 'Hexa beğenisi gönder',
-                    count: _compactCount(widget.signalCount),
+                        ? 'Beğeniyi kaldır'
+                        : 'Videoyu beğen',
+                    label: _compactCount(widget.signalCount),
                     active: widget.isLiked,
-                    activeColor: HexaColors.hopePink,
+                    activeColor: const Color(0xFF8B5CF6),
                     onPressed: widget.onLikePressed,
                   ),
                 ),
@@ -218,15 +212,10 @@ class _VideoActionBarState extends State<VideoActionBar>
                 child: _StaggeredAction(
                   animation: _actionAnimations[2],
                   child: _ActionSurface(
-                    icon: widget.isSaved
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    semanticsLabel: widget.isSaved
-                        ? 'Kaydedilenlerden çıkar'
-                        : 'Videoyu kaydet',
-                    active: widget.isSaved,
-                    activeColor: HexaColors.warning,
-                    onPressed: widget.onSavePressed,
+                    icon: Icons.ios_share_rounded,
+                    semanticsLabel: 'Videoyu paylaş',
+                    label: 'Paylaş',
+                    onPressed: widget.onSharePressed,
                   ),
                 ),
               ),
@@ -234,9 +223,16 @@ class _VideoActionBarState extends State<VideoActionBar>
                 child: _StaggeredAction(
                   animation: _actionAnimations[3],
                   child: _ActionSurface(
-                    icon: Icons.ios_share_rounded,
-                    semanticsLabel: 'Videoyu paylaş',
-                    onPressed: widget.onSharePressed,
+                    icon: widget.isSaved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    semanticsLabel: widget.isSaved
+                        ? 'Kaydedilenlerden çıkar'
+                        : 'Videoyu kaydet',
+                    label: 'Kaydet',
+                    active: widget.isSaved,
+                    activeColor: const Color(0xFF06B6D4),
+                    onPressed: widget.onSavePressed,
                   ),
                 ),
               ),
@@ -259,12 +255,13 @@ class _StaggeredAction extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        final double value = animation.value.clamp(0.0, 1.0).toDouble();
+        final value = animation.value.clamp(0.0, 1.0).toDouble();
+
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 9 * (1 - value)),
-            child: Transform.scale(scale: 0.82 + value * 0.18, child: child),
+            offset: Offset(0, 8 * (1 - value)),
+            child: Transform.scale(scale: 0.94 + value * 0.06, child: child),
           ),
         );
       },
@@ -277,17 +274,17 @@ class _ActionSurface extends StatefulWidget {
   const _ActionSurface({
     required this.icon,
     required this.semanticsLabel,
+    required this.label,
     required this.onPressed,
-    this.count,
     this.active = false,
-    this.activeColor = HexaColors.white,
+    this.activeColor = Colors.white,
   });
 
   final IconData icon;
   final String semanticsLabel;
+  final String label;
   final VoidCallback onPressed;
 
-  final String? count;
   final bool active;
   final Color activeColor;
 
@@ -300,69 +297,95 @@ class _ActionSurface extends StatefulWidget {
 class _ActionSurfaceState extends State<_ActionSurface> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    final color = widget.active ? widget.activeColor : HexaColors.white;
+    final foregroundColor = widget.active
+        ? widget.activeColor
+        : const Color(0xEBFFFFFF);
 
     return Semantics(
       button: true,
       toggled: widget.active,
       label: widget.semanticsLabel,
-      child: Tooltip(
-        message: widget.semanticsLabel,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) {
-            setState(() => _pressed = true);
-          },
-          onTapCancel: () {
-            setState(() => _pressed = false);
-          },
-          onTapUp: (_) {
-            setState(() => _pressed = false);
-            widget.onPressed();
-          },
-          child: AnimatedScale(
-            scale: _pressed ? HexaMotion.pressScale : 1,
-            duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-            curve: HexaMotion.elastic,
-            child: SizedBox.expand(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  AnimatedSwitcher(
-                    duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-                    transitionBuilder: (child, animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: ScaleTransition(scale: animation, child: child),
-                      );
-                    },
-                    child: Icon(
-                      widget.icon,
-                      key: ValueKey<IconData>(widget.icon),
-                      color: color,
-                      size: 24,
-                    ),
-                  ),
-                  if (widget.count != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.count!,
-                      style: TextStyle(
-                        color: widget.active
-                            ? color
-                            : HexaColors.white.withAlpha(170),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _setPressed(true);
+        },
+        onTapCancel: () {
+          _setPressed(false);
+        },
+        onTapUp: (_) {
+          _setPressed(false);
+          widget.onPressed();
+        },
+        child: AnimatedScale(
+          scale: _pressed ? 0.88 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          child: SizedBox.expand(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween<double>(
+                          begin: 0.82,
+                          end: 1,
+                        ).animate(animation),
+                        child: child,
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                    );
+                  },
+                  child: Icon(
+                    widget.icon,
+                    key: ValueKey<IconData>(widget.icon),
+                    color: foregroundColor,
+                    size: 25,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  style: TextStyle(
+                    color: widget.active
+                        ? foregroundColor
+                        : const Color(0xAFFFFFFF),
+                    fontSize: 10,
+                    height: 1,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.05,
+                  ),
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -371,7 +394,7 @@ class _ActionSurfaceState extends State<_ActionSurface> {
   }
 }
 
-class _ProfileSurface extends StatelessWidget {
+class _ProfileSurface extends StatefulWidget {
   const _ProfileSurface({
     required this.avatarUrl,
     required this.enabled,
@@ -383,41 +406,108 @@ class _ProfileSurface extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  State<_ProfileSurface> createState() {
+    return _ProfileSurfaceState();
+  }
+}
+
+class _ProfileSurfaceState extends State<_ProfileSurface> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
+
     return Semantics(
       button: true,
-      enabled: enabled,
+      enabled: widget.enabled,
       label: 'İçerik sahibinin profiline git',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onPressed : null,
-        child: Center(
+        onTapDown: widget.enabled
+            ? (_) {
+                _setPressed(true);
+              }
+            : null,
+        onTapCancel: widget.enabled
+            ? () {
+                _setPressed(false);
+              }
+            : null,
+        onTapUp: widget.enabled
+            ? (_) {
+                _setPressed(false);
+                widget.onPressed();
+              }
+            : null,
+        child: AnimatedScale(
+          scale: _pressed ? 0.88 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
           child: Opacity(
-            opacity: enabled ? 1 : 0.42,
-            child: ClipPath(
-              clipper: const _HexagonClipper(),
-              child: Container(
-                width: 39,
-                height: 39,
-                color: HexaColors.white.withAlpha(22),
-                child: avatarUrl.trim().isEmpty
-                    ? const Icon(
-                        Icons.person_outline_rounded,
-                        color: HexaColors.white,
-                        size: 21,
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: avatarUrl,
-                        fit: BoxFit.cover,
-                        fadeInDuration: HexaMotion.fast,
-                        errorWidget: (_, __, ___) {
-                          return const Icon(
-                            Icons.person_outline_rounded,
-                            color: HexaColors.white,
-                            size: 21,
-                          );
-                        },
+            opacity: widget.enabled ? 1 : 0.38,
+            child: SizedBox.expand(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Container(
+                    width: 40,
+                    height: 40,
+                    padding: const EdgeInsets.all(1.4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: widget.enabled
+                          ? const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: <Color>[
+                                Color(0xFF8B5CF6),
+                                Color(0xFF06B6D4),
+                              ],
+                            )
+                          : null,
+                      color: widget.enabled ? null : const Color(0x29FFFFFF),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF111116),
+                        shape: BoxShape.circle,
                       ),
+                      child: ClipOval(
+                        child: ColoredBox(
+                          color: const Color(0xFF202027),
+                          child: _buildAvatar(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Profil',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xAFFFFFFF),
+                      fontSize: 10,
+                      height: 1,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.05,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -425,53 +515,68 @@ class _ProfileSurface extends StatelessWidget {
       ),
     );
   }
-}
 
-class _HexagonClipper extends CustomClipper<Path> {
-  const _HexagonClipper();
+  Widget _buildAvatar() {
+    final avatarUrl = widget.avatarUrl.trim();
 
-  @override
-  Path getClip(Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2;
-    final path = Path();
-
-    for (var index = 0; index < 6; index++) {
-      final angle = -3.141592653589793 / 2 + index * 3.141592653589793 / 3;
-
-      final point = Offset(
-        center.dx + radius * math.cos(angle),
-        center.dy + radius * math.sin(angle),
+    if (avatarUrl.isEmpty) {
+      return const Center(
+        child: Icon(Icons.person_rounded, color: Color(0xCFFFFFFF), size: 21),
       );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
     }
 
-    return path..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _HexagonClipper oldClipper) {
-    return false;
+    return CachedNetworkImage(
+      imageUrl: avatarUrl,
+      fit: BoxFit.cover,
+      fadeInDuration: const Duration(milliseconds: 140),
+      fadeOutDuration: const Duration(milliseconds: 100),
+      placeholder: (_, __) {
+        return const Center(
+          child: SizedBox(
+            width: 13,
+            height: 13,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.4,
+              color: Color(0x99FFFFFF),
+            ),
+          ),
+        );
+      },
+      errorWidget: (_, __, ___) {
+        return const Center(
+          child: Icon(Icons.person_rounded, color: Color(0xCFFFFFFF), size: 21),
+        );
+      },
+    );
   }
 }
 
 String _compactCount(int value) {
-  if (value >= 1000000) {
-    final digits = value >= 10000000 ? 0 : 1;
+  if (value >= 1000000000) {
+    return _formatCompactValue(value / 1000000000, 'B');
+  }
 
-    return '${(value / 1000000).toStringAsFixed(digits)}M';
+  if (value >= 1000000) {
+    return _formatCompactValue(value / 1000000, 'M');
   }
 
   if (value >= 1000) {
-    final digits = value >= 10000 ? 0 : 1;
-
-    return '${(value / 1000).toStringAsFixed(digits)}K';
+    return _formatCompactValue(value / 1000, 'K');
   }
 
   return value.toString();
+}
+
+String _formatCompactValue(double value, String suffix) {
+  final formatted = value >= 100
+      ? value.toStringAsFixed(0)
+      : value >= 10
+      ? value.toStringAsFixed(1)
+      : value.toStringAsFixed(1);
+
+  final cleaned = formatted.endsWith('.0')
+      ? formatted.substring(0, formatted.length - 2)
+      : formatted;
+
+  return '$cleaned$suffix';
 }

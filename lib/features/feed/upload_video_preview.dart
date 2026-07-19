@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -167,7 +166,7 @@ class _UploadVideoPreviewState extends State<UploadVideoPreview>
       _showPlaybackSignal = true;
     });
 
-    _playbackSignalTimer = Timer(HexaMotion.breathe, () {
+    _playbackSignalTimer = Timer(const Duration(milliseconds: 620), () {
       if (!mounted) {
         return;
       }
@@ -197,44 +196,44 @@ class _UploadVideoPreviewState extends State<UploadVideoPreview>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
     final screenHeight = MediaQuery.sizeOf(context).height;
 
-    final previewHeight = (screenHeight * 0.48).clamp(300.0, 500.0);
+    final previewHeight = (screenHeight * 0.47).clamp(300.0, 520.0).toDouble();
+
+    final borderRadius = BorderRadius.circular(24);
 
     return RepaintBoundary(
       child: Container(
         height: previewHeight,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: HexaRadius.borderLg,
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          boxShadow: HexaShadows.soft,
+          color: HexaColors.surfaceDark,
+          borderRadius: borderRadius,
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
         ),
         child: ClipRRect(
-          borderRadius: HexaRadius.borderLg,
+          borderRadius: borderRadius,
           child: AnimatedSwitcher(
-            duration: reduceMotion ? Duration.zero : HexaMotion.normal,
-            switchInCurve: HexaMotion.enter,
-            switchOutCurve: HexaMotion.exit,
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 220),
+            reverseDuration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (currentChild, previousChildren) {
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              );
+            },
             transitionBuilder: (child, animation) {
-              final curved = CurvedAnimation(
-                parent: animation,
-                curve: HexaMotion.enter,
-              );
-
-              return FadeTransition(
-                opacity: curved,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: HexaMotion.pageEnterOffset,
-                    end: Offset.zero,
-                  ).animate(curved),
-                  child: child,
-                ),
-              );
+              return FadeTransition(opacity: animation, child: child);
             },
             child: _buildContent(),
           ),
@@ -246,14 +245,14 @@ class _UploadVideoPreviewState extends State<UploadVideoPreview>
   Widget _buildContent() {
     if (widget.videoFile == null) {
       return _EmptyVideoPreview(
-        key: const ValueKey<String>('empty'),
+        key: const ValueKey<String>('empty-video-preview'),
         onTap: widget.onPickVideo,
       );
     }
 
     if (_hasInitializationError) {
       return _PreviewError(
-        key: const ValueKey<String>('error'),
+        key: const ValueKey<String>('video-preview-error'),
         onTap: widget.onPickVideo,
       );
     }
@@ -263,7 +262,9 @@ class _UploadVideoPreviewState extends State<UploadVideoPreview>
     if (_isInitializing ||
         controller == null ||
         !controller.value.isInitialized) {
-      return const _PreviewLoading(key: ValueKey<String>('loading'));
+      return const _PreviewLoading(
+        key: ValueKey<String>('video-preview-loading'),
+      );
     }
 
     return _SelectedVideoPreview(
@@ -283,49 +284,78 @@ class _EmptyVideoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return _PressablePreviewSurface(
       onTap: onTap,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              theme.colorScheme.surface,
-              HexaColors.surfaceWarm,
-              HexaColors.lavenderSoft,
-            ],
-          ),
-        ),
+      semanticLabel: 'Galeriden video seç',
+      child: ColoredBox(
+        color: HexaColors.surfaceDark,
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(HexaSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                CustomPaint(
-                  size: const Size.square(74),
-                  painter: _PreviewHexPainter(
-                    color: theme.colorScheme.primary,
-                    phase: 0.08,
+                Container(
+                  width: 58,
+                  height: 58,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: HexaColors.purple.withOpacity(0.10),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: HexaColors.purple.withOpacity(0.24),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.video_library_outlined,
+                    color: HexaColors.purpleSoft,
+                    size: 27,
                   ),
                 ),
-                const SizedBox(height: HexaSpacing.lg),
-                Text(
-                  'Video seç',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: HexaSpacing.xs),
-                Text(
-                  'MP4 · MOV · M4V · WebM',
+                const SizedBox(height: 20),
+                const Text(
+                  'Galeriden video seç',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    letterSpacing: 0.9,
+                  style: TextStyle(
+                    color: Color(0xF2FFFFFF),
+                    fontSize: 17,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.30,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'MP4, MOV, M4V veya WebM',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0x70FFFFFF),
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.04,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: const Text(
+                    'Video seç',
+                    style: TextStyle(
+                      color: Color(0xDFFFFFFF),
+                      fontSize: 12,
+                      height: 1,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.06,
+                    ),
                   ),
                 ),
               ],
@@ -354,7 +384,7 @@ class _SelectedVideoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -363,9 +393,10 @@ class _SelectedVideoPreview extends StatelessWidget {
         fit: StackFit.expand,
         children: <Widget>[
           ColoredBox(
-            color: HexaColors.earth,
+            color: HexaColors.backgroundDark,
             child: FittedBox(
               fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
               child: SizedBox(
                 width: controller.value.size.width,
                 height: controller.value.size.height,
@@ -373,42 +404,62 @@ class _SelectedVideoPreview extends StatelessWidget {
               ),
             ),
           ),
-          const DecoratedBox(
-            decoration: BoxDecoration(gradient: HexaGradients.feedScrim),
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[
+                    Color(0x52050507),
+                    Color(0x00050507),
+                    Color(0x00050507),
+                    Color(0x73050507),
+                  ],
+                  stops: <double>[0, 0.20, 0.72, 1],
+                ),
+              ),
+            ),
           ),
           Positioned(
-            top: HexaSpacing.sm,
-            right: HexaSpacing.sm,
+            top: 12,
+            right: 12,
             child: _PreviewAction(
               tooltip: 'Videoyu değiştir',
               icon: Icons.swap_horiz_rounded,
               onTap: onChangeVideo,
             ),
           ),
-          Center(
-            child: AnimatedOpacity(
-              opacity: showPlaybackSignal ? 1 : 0,
-              duration: HexaMotion.fast,
-              curve: HexaMotion.enter,
-              child: AnimatedScale(
-                scale: showPlaybackSignal ? 1 : 0.88,
-                duration: HexaMotion.fast,
-                curve: HexaMotion.elastic,
-                child: Container(
-                  width: 62,
-                  height: 62,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: HexaColors.earth.withAlpha(165),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: HexaColors.white.withAlpha(52)),
-                  ),
-                  child: Icon(
-                    controller.value.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: HexaColors.white,
-                    size: 28,
+          IgnorePointer(
+            child: Center(
+              child: AnimatedOpacity(
+                opacity: showPlaybackSignal ? 1 : 0,
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                curve: Curves.easeOutCubic,
+                child: AnimatedScale(
+                  scale: showPlaybackSignal ? 1 : 0.88,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xA6050507),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    ),
+                    child: Icon(
+                      controller.value.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: Colors.white.withOpacity(0.94),
+                      size: 29,
+                    ),
                   ),
                 ),
               ),
@@ -425,9 +476,9 @@ class _SelectedVideoPreview extends StatelessWidget {
                 allowScrubbing: true,
                 padding: EdgeInsets.zero,
                 colors: VideoProgressColors(
-                  playedColor: theme.colorScheme.primary,
-                  bufferedColor: HexaColors.white.withAlpha(70),
-                  backgroundColor: HexaColors.white.withAlpha(30),
+                  playedColor: HexaColors.purple,
+                  bufferedColor: Colors.white.withOpacity(0.26),
+                  backgroundColor: Colors.white.withOpacity(0.10),
                 ),
               ),
             ),
@@ -443,69 +494,38 @@ class _PreviewLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return ColoredBox(
-      color: theme.colorScheme.surface,
-      child: const Center(child: _PreviewLoadingSignal()),
-    );
-  }
-}
-
-class _PreviewLoadingSignal extends StatefulWidget {
-  const _PreviewLoadingSignal();
-
-  @override
-  State<_PreviewLoadingSignal> createState() {
-    return _PreviewLoadingSignalState();
-  }
-}
-
-class _PreviewLoadingSignalState extends State<_PreviewLoadingSignal>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: HexaMotion.breathe * 3,
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (HexaMotion.reduceMotionOf(context)) {
-      _controller
-        ..stop()
-        ..value = 0.12;
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          size: const Size.square(74),
-          painter: _PreviewHexPainter(color: color, phase: _controller.value),
-        );
-      },
+      color: HexaColors.backgroundDark,
+      child: Center(
+        child: Semantics(
+          label: 'Video önizlemesi hazırlanıyor',
+          liveRegion: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const SizedBox.square(
+                dimension: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.1,
+                  color: HexaColors.purple,
+                  backgroundColor: Color(0x1AFFFFFF),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Önizleme hazırlanıyor',
+                style: TextStyle(
+                  color: Color(0x70FFFFFF),
+                  fontSize: 12.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.06,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -517,37 +537,44 @@ class _PreviewError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return _PressablePreviewSurface(
       onTap: onTap,
+      semanticLabel: 'Önizleme açılamadı. Başka video seç.',
       child: ColoredBox(
-        color: theme.colorScheme.surface,
+        color: HexaColors.backgroundDark,
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(HexaSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(
-                  Icons.broken_image_outlined,
-                  color: theme.colorScheme.error,
-                  size: 34,
+                  Icons.videocam_off_outlined,
+                  color: Colors.white.withOpacity(0.34),
+                  size: 31,
                 ),
-                const SizedBox(height: HexaSpacing.md),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Önizleme açılamadı',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                  style: TextStyle(
+                    color: Color(0xEFFFFFFF),
+                    fontSize: 16,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.26,
                   ),
                 ),
-                const SizedBox(height: HexaSpacing.xs),
-                Text(
-                  'Başka bir video seçmek için dokun',
+                const SizedBox(height: 8),
+                const Text(
+                  'Başka bir video seçmek için dokun.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  style: TextStyle(
+                    color: Color(0x70FFFFFF),
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.06,
                   ),
                 ),
               ],
@@ -579,38 +606,58 @@ class _PreviewAction extends StatefulWidget {
 class _PreviewActionState extends State<_PreviewAction> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    return Tooltip(
-      message: widget.tooltip,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) {
-          setState(() => _pressed = true);
-        },
-        onTapCancel: () {
-          setState(() => _pressed = false);
-        },
-        onTapUp: (_) {
-          setState(() => _pressed = false);
-          widget.onTap();
-        },
-        child: AnimatedScale(
-          scale: _pressed ? HexaMotion.pressScale : 1,
-          duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-          curve: HexaMotion.elastic,
-          child: Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: HexaColors.earth.withAlpha(150),
-              shape: BoxShape.circle,
-              border: Border.all(color: HexaColors.white.withAlpha(48)),
+    return Semantics(
+      button: true,
+      label: widget.tooltip,
+      child: Tooltip(
+        message: widget.tooltip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) {
+            _setPressed(true);
+          },
+          onTapCancel: () {
+            _setPressed(false);
+          },
+          onTapUp: (_) {
+            _setPressed(false);
+            widget.onTap();
+          },
+          child: AnimatedScale(
+            scale: _pressed ? 0.88 : 1,
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 130),
+            curve: Curves.easeOutCubic,
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0x99050507),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.11)),
+              ),
+              child: Icon(
+                widget.icon,
+                color: Colors.white.withOpacity(0.90),
+                size: 20,
+              ),
             ),
-            child: Icon(widget.icon, color: HexaColors.white, size: 20),
           ),
         ),
       ),
@@ -619,9 +666,14 @@ class _PreviewActionState extends State<_PreviewAction> {
 }
 
 class _PressablePreviewSurface extends StatefulWidget {
-  const _PressablePreviewSurface({required this.onTap, required this.child});
+  const _PressablePreviewSurface({
+    required this.onTap,
+    required this.semanticLabel,
+    required this.child,
+  });
 
   final VoidCallback onTap;
+  final String semanticLabel;
   final Widget child;
 
   @override
@@ -633,89 +685,44 @@ class _PressablePreviewSurface extends StatefulWidget {
 class _PressablePreviewSurfaceState extends State<_PressablePreviewSurface> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
-        setState(() => _pressed = true);
-      },
-      onTapCancel: () {
-        setState(() => _pressed = false);
-      },
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      child: AnimatedScale(
-        scale: _pressed ? HexaMotion.pressScale : 1,
-        duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-        curve: HexaMotion.elastic,
-        child: widget.child,
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _setPressed(true);
+        },
+        onTapCancel: () {
+          _setPressed(false);
+        },
+        onTapUp: (_) {
+          _setPressed(false);
+          widget.onTap();
+        },
+        child: AnimatedScale(
+          scale: _pressed ? 0.985 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 130),
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
       ),
     );
-  }
-}
-
-class _PreviewHexPainter extends CustomPainter {
-  const _PreviewHexPainter({required this.color, required this.phase});
-
-  final Color color;
-  final double phase;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide * 0.34;
-
-    final path = Path();
-
-    for (var index = 0; index < 6; index++) {
-      final angle = -math.pi / 2 + index * math.pi / 3;
-
-      final point = Offset(
-        center.dx + math.cos(angle) * radius,
-        center.dy + math.sin(angle) * radius,
-      );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    path.close();
-
-    final glowPaint = Paint()
-      ..color = color.withAlpha(36)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12;
-
-    canvas.drawPath(path, glowPaint);
-
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(phase * math.pi * 2);
-    canvas.translate(-center.dx, -center.dy);
-
-    final linePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(path, linePaint);
-    canvas.restore();
-
-    canvas.drawCircle(center, 3, Paint()..color = HexaColors.hopePink);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PreviewHexPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.phase != phase;
   }
 }

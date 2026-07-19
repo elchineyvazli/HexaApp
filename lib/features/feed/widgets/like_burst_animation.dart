@@ -27,10 +27,10 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  Timer? _staticPulseTimer;
+  Timer? _staticFeedbackTimer;
 
   bool _reduceMotion = false;
-  bool _showStaticPulse = false;
+  bool _showStaticFeedback = false;
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 920),
+      duration: const Duration(milliseconds: 900),
     );
   }
 
@@ -58,19 +58,19 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
     }
 
     if (_reduceMotion) {
-      _staticPulseTimer?.cancel();
+      _staticFeedbackTimer?.cancel();
 
       setState(() {
-        _showStaticPulse = true;
+        _showStaticFeedback = true;
       });
 
-      _staticPulseTimer = Timer(HexaMotion.normal, () {
+      _staticFeedbackTimer = Timer(const Duration(milliseconds: 700), () {
         if (!mounted) {
           return;
         }
 
         setState(() {
-          _showStaticPulse = false;
+          _showStaticFeedback = false;
         });
       });
 
@@ -82,7 +82,7 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
 
   @override
   void dispose() {
-    _staticPulseTimer?.cancel();
+    _staticFeedbackTimer?.cancel();
     _controller.dispose();
 
     super.dispose();
@@ -93,16 +93,25 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
     if (_reduceMotion) {
       return IgnorePointer(
         child: AnimatedOpacity(
-          opacity: _showStaticPulse ? 1 : 0,
+          opacity: _showStaticFeedback ? 1 : 0,
           duration: HexaMotion.instant,
-          child: CustomPaint(
-            painter: _HexaBurstPainter(
-              origin: widget.origin,
-              progress: 0.42,
-              opacity: 0.9,
-              staticMode: true,
-            ),
-            child: const SizedBox.expand(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              Positioned(
+                left: widget.origin.dx - 42,
+                top: widget.origin.dy - 42,
+                width: 84,
+                height: 84,
+                child: const Center(child: _HeartGlyph(size: 62)),
+              ),
+              Positioned(
+                left: widget.origin.dx - 70,
+                top: widget.origin.dy + 40,
+                width: 140,
+                child: _LikeCountLabel(count: widget.signalCount),
+              ),
+            ],
           ),
         ),
       );
@@ -112,52 +121,91 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          final rawProgress = _controller.value;
+          final progress = _controller.value;
 
-          if (rawProgress <= 0 || rawProgress >= 1) {
+          if (progress <= 0 || progress >= 1) {
             return const SizedBox.shrink();
           }
 
-          final progress = Curves.easeOutCubic.transform(rawProgress);
+          final heartEntry = Curves.easeOutBack.transform(
+            _interval(progress, 0, 0.34),
+          );
 
-          final opacity =
-              1 - Curves.easeIn.transform(_interval(rawProgress, 0.58, 1));
+          final heartExit =
+              1 - Curves.easeInCubic.transform(_interval(progress, 0.64, 1));
 
-          final countOpacity = _countOpacity(rawProgress);
+          final heartOpacity = (heartEntry * heartExit)
+              .clamp(0.0, 1.0)
+              .toDouble();
+
+          final heartScale =
+              heartEntry *
+              (1 -
+                  0.08 *
+                      Curves.easeOut.transform(
+                        _interval(progress, 0.34, 0.64),
+                      ));
+
+          final heartRise =
+              28 *
+              Curves.easeOutCubic.transform(_interval(progress, 0.12, 0.82));
+
+          final heartRotation =
+              -0.12 +
+              0.12 *
+                  Curves.easeOutCubic.transform(_interval(progress, 0, 0.40));
+
+          final countOpacity = _countOpacity(progress);
+
+          final countRise =
+              10 *
+              Curves.easeOutCubic.transform(_interval(progress, 0.30, 0.72));
+
+          final particleProgress = Curves.easeOutCubic.transform(
+            _interval(progress, 0.04, 0.70),
+          );
+
+          final particleOpacity =
+              1 - Curves.easeInCubic.transform(_interval(progress, 0.38, 0.76));
 
           return Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              CustomPaint(
-                painter: _HexaBurstPainter(
-                  origin: widget.origin,
-                  progress: progress,
-                  opacity: opacity,
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _LikeParticlePainter(
+                    origin: widget.origin,
+                    progress: particleProgress,
+                    opacity: particleOpacity,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: widget.origin.dx - 48,
+                top: widget.origin.dy - 48,
+                width: 96,
+                height: 96,
+                child: Opacity(
+                  opacity: heartOpacity,
+                  child: Transform.translate(
+                    offset: Offset(0, -heartRise),
+                    child: Transform.rotate(
+                      angle: heartRotation,
+                      child: Transform.scale(
+                        scale: heartScale,
+                        child: const Center(child: _HeartGlyph(size: 72)),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               Positioned(
                 left: widget.origin.dx - 70,
-                top:
-                    widget.origin.dy +
-                    49 -
-                    13 * _interval(rawProgress, 0.55, 1),
+                top: widget.origin.dy + 40 - countRise,
                 width: 140,
                 child: Opacity(
                   opacity: countOpacity,
-                  child: Text(
-                    compactSignalCount(widget.signalCount),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: HexaColors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.7,
-                      shadows: <Shadow>[
-                        Shadow(color: HexaColors.earth, blurRadius: 13),
-                        Shadow(color: HexaColors.signalGlow, blurRadius: 20),
-                      ],
-                    ),
-                  ),
+                  child: _LikeCountLabel(count: widget.signalCount),
                 ),
               ),
             ],
@@ -168,235 +216,181 @@ class _LikeBurstAnimationState extends State<LikeBurstAnimation>
   }
 
   double _countOpacity(double progress) {
-    if (progress < 0.16) {
+    if (progress < 0.28) {
       return 0;
     }
 
-    if (progress < 0.58) {
-      return _interval(progress, 0.16, 0.3);
+    if (progress < 0.48) {
+      return Curves.easeOutCubic.transform(_interval(progress, 0.28, 0.48));
     }
 
-    return 1 - _interval(progress, 0.58, 1);
+    if (progress < 0.76) {
+      return 1;
+    }
+
+    return 1 - Curves.easeInCubic.transform(_interval(progress, 0.76, 1));
   }
 }
 
-class _HexaBurstPainter extends CustomPainter {
-  const _HexaBurstPainter({
+class _HeartGlyph extends StatelessWidget {
+  const _HeartGlyph({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        Icon(
+          Icons.favorite_rounded,
+          size: size + 8,
+          color: const Color(0x668B5CF6),
+          shadows: const <Shadow>[
+            Shadow(color: Color(0xB38B5CF6), blurRadius: 28),
+            Shadow(color: Color(0x6606B6D4), blurRadius: 42),
+          ],
+        ),
+        Icon(
+          Icons.favorite_rounded,
+          size: size,
+          color: const Color(0xFF8B5CF6),
+          shadows: const <Shadow>[
+            Shadow(
+              color: Color(0x99000000),
+              blurRadius: 12,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        Positioned(
+          top: size * 0.24,
+          left: size * 0.31,
+          child: Container(
+            width: size * 0.12,
+            height: size * 0.12,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.70),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LikeCountLabel extends StatelessWidget {
+  const _LikeCountLabel({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Icon(
+          Icons.favorite_rounded,
+          color: Color(0xFF8B5CF6),
+          size: 18,
+          shadows: <Shadow>[
+            Shadow(
+              color: Color(0xB3000000),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        const SizedBox(width: 6),
+        Text(
+          compactSignalCount(count),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            height: 1,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.25,
+            shadows: <Shadow>[
+              Shadow(
+                color: Color(0xCC000000),
+                blurRadius: 12,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LikeParticlePainter extends CustomPainter {
+  const _LikeParticlePainter({
     required this.origin,
     required this.progress,
     required this.opacity,
-    this.staticMode = false,
   });
 
   final Offset origin;
   final double progress;
   final double opacity;
-  final bool staticMode;
+
+  static const Color _purple = Color(0xFF8B5CF6);
+  static const Color _cyan = Color(0xFF06B6D4);
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || opacity <= 0) {
+      return;
+    }
+
     final safeOpacity = opacity.clamp(0.0, 1.0).toDouble();
 
-    final double coreScale = staticMode
-        ? 1.0
-        : Curves.easeOutBack.transform(_interval(progress, 0.0, 0.44));
-
-    _drawCore(canvas, coreScale: coreScale, opacity: safeOpacity);
-
-    if (!staticMode) {
-      _drawParticles(canvas, opacity: safeOpacity);
-    }
-  }
-
-  void _drawCore(
-    Canvas canvas, {
-    required double coreScale,
-    required double opacity,
-  }) {
-    final radius = 37 * coreScale;
-
-    final glowRect = Rect.fromCircle(center: origin, radius: radius * 1.7);
+    final ringRadius = 22 + 38 * progress;
 
     canvas.drawCircle(
       origin,
-      radius * 1.7,
+      ringRadius,
       Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[
-            HexaColors.error.withAlpha((115 * opacity).round()),
-            HexaColors.signal.withAlpha((66 * opacity).round()),
-            HexaColors.transparent,
-          ],
-        ).createShader(glowRect),
-    );
-
-    final rotation = progress * math.pi * 0.9;
-
-    final path = _hexagonPath(
-      center: origin,
-      radius: radius,
-      rotation: rotation,
-    );
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = HexaColors.hopePink.withAlpha((235 * opacity).round())
+        ..color = _purple.withValues(alpha: 0.30 * safeOpacity * (1 - progress))
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeJoin = StrokeJoin.round,
+        ..strokeWidth = 2,
     );
 
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = HexaColors.signal.withAlpha((48 * opacity).round())
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 14,
-    );
-
-    final coreRect = Rect.fromCircle(center: origin, radius: radius * 0.58);
-
-    canvas.drawCircle(
-      origin,
-      radius * 0.58,
-      Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[
-            HexaColors.hopePink.withAlpha((255 * opacity).round()),
-            HexaColors.error.withAlpha((255 * opacity).round()),
-            HexaColors.horizon.withAlpha((255 * opacity).round()),
-          ],
-        ).createShader(coreRect),
-    );
-
-    canvas.drawPath(
-      _sparkPath(center: origin, radius: radius * 0.31),
-      Paint()..color = HexaColors.white.withAlpha((255 * opacity).round()),
-    );
-  }
-
-  void _drawParticles(Canvas canvas, {required double opacity}) {
-    const particleCount = 16;
+    const particleCount = 10;
 
     for (var index = 0; index < particleCount; index++) {
-      final angle =
-          index * math.pi * 2 / particleCount + (index.isEven ? 0.08 : -0.05);
+      final angle = -math.pi / 2 + index * math.pi * 2 / particleCount;
 
-      final multiplier = 0.82 + (index % 4) * 0.09;
-
-      final distance = 31 + 73 * progress * multiplier;
+      final distance = 18 + (42 + (index.isEven ? 8 : 0)) * progress;
 
       final point = Offset(
         origin.dx + math.cos(angle) * distance,
         origin.dy + math.sin(angle) * distance,
       );
 
-      final particleOpacity = opacity * (1 - _interval(progress, 0.52, 1));
+      final particleSize = (index.isEven ? 3.1 : 2.3) * (1 - 0.35 * progress);
 
-      final particleSize = (index.isEven ? 4.2 : 2.7) * (1 - progress * 0.3);
+      final color = index.isEven ? _purple : _cyan;
 
-      final color = index % 3 == 0
-          ? HexaColors.warning
-          : index % 3 == 1
-          ? HexaColors.hopePink
-          : const Color(0xFFFFD166);
-
-      if (index.isEven) {
-        canvas.save();
-        canvas.translate(point.dx, point.dy);
-        canvas.rotate(progress * math.pi * 3 + index * 0.17);
-
-        canvas.drawPath(
-          _miniStarPath(particleSize),
-          Paint()..color = color.withAlpha((255 * particleOpacity).round()),
-        );
-
-        canvas.restore();
-      } else {
-        canvas.drawCircle(
-          point,
-          particleSize,
-          Paint()..color = color.withAlpha((255 * particleOpacity).round()),
-        );
-      }
-    }
-  }
-
-  Path _hexagonPath({
-    required Offset center,
-    required double radius,
-    required double rotation,
-  }) {
-    final path = Path();
-
-    for (var index = 0; index < 6; index++) {
-      final angle = rotation - math.pi / 2 + index * math.pi / 3;
-
-      final point = Offset(
-        center.dx + math.cos(angle) * radius,
-        center.dy + math.sin(angle) * radius,
+      canvas.drawCircle(
+        point,
+        particleSize,
+        Paint()
+          ..color = color.withValues(
+            alpha: safeOpacity * (1 - 0.24 * progress),
+          ),
       );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
     }
-
-    return path..close();
-  }
-
-  Path _sparkPath({required Offset center, required double radius}) {
-    return Path()
-      ..moveTo(center.dx, center.dy - radius)
-      ..quadraticBezierTo(
-        center.dx + radius * 0.12,
-        center.dy - radius * 0.12,
-        center.dx + radius,
-        center.dy,
-      )
-      ..quadraticBezierTo(
-        center.dx + radius * 0.12,
-        center.dy + radius * 0.12,
-        center.dx,
-        center.dy + radius,
-      )
-      ..quadraticBezierTo(
-        center.dx - radius * 0.12,
-        center.dy + radius * 0.12,
-        center.dx - radius,
-        center.dy,
-      )
-      ..quadraticBezierTo(
-        center.dx - radius * 0.12,
-        center.dy - radius * 0.12,
-        center.dx,
-        center.dy - radius,
-      )
-      ..close();
-  }
-
-  Path _miniStarPath(double radius) {
-    return Path()
-      ..moveTo(0, -radius)
-      ..lineTo(radius * 0.27, -radius * 0.27)
-      ..lineTo(radius, 0)
-      ..lineTo(radius * 0.27, radius * 0.27)
-      ..lineTo(0, radius)
-      ..lineTo(-radius * 0.27, radius * 0.27)
-      ..lineTo(-radius, 0)
-      ..lineTo(-radius * 0.27, -radius * 0.27)
-      ..close();
   }
 
   @override
-  bool shouldRepaint(covariant _HexaBurstPainter oldDelegate) {
+  bool shouldRepaint(covariant _LikeParticlePainter oldDelegate) {
     return oldDelegate.origin != origin ||
         oldDelegate.progress != progress ||
-        oldDelegate.opacity != opacity ||
-        oldDelegate.staticMode != staticMode;
+        oldDelegate.opacity != opacity;
   }
 }
 
@@ -405,21 +399,39 @@ double _interval(double value, double start, double end) {
     return value >= end ? 1 : 0;
   }
 
-  return ((value - start) / (end - start)).clamp(0, 1).toDouble();
+  return ((value - start) / (end - start)).clamp(0.0, 1.0).toDouble();
 }
 
 String compactSignalCount(int value) {
-  if (value >= 1000000) {
-    final digits = value >= 10000000 ? 0 : 1;
+  if (value >= 1000000000) {
+    return _compactCount(value: value, divisor: 1000000000, suffix: 'B');
+  }
 
-    return '${(value / 1000000).toStringAsFixed(digits)}M';
+  if (value >= 1000000) {
+    return _compactCount(value: value, divisor: 1000000, suffix: 'M');
   }
 
   if (value >= 1000) {
-    final digits = value >= 10000 ? 0 : 1;
-
-    return '${(value / 1000).toStringAsFixed(digits)}K';
+    return _compactCount(value: value, divisor: 1000, suffix: 'K');
   }
 
   return value.toString();
+}
+
+String _compactCount({
+  required int value,
+  required int divisor,
+  required String suffix,
+}) {
+  final compactValue = value / divisor;
+
+  final formatted = compactValue >= 10
+      ? compactValue.toStringAsFixed(0)
+      : compactValue.toStringAsFixed(1);
+
+  final cleaned = formatted.endsWith('.0')
+      ? formatted.substring(0, formatted.length - 2)
+      : formatted;
+
+  return '$cleaned$suffix';
 }

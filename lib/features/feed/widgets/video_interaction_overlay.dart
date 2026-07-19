@@ -25,9 +25,7 @@ class VideoInteractionOverlay extends StatefulWidget {
   final int dismissToken;
 
   final Future<void> Function() onTogglePlayback;
-
   final Future<void> Function() onOpenComments;
-
   final ValueChanged<bool> onActionBarVisibilityChanged;
 
   @override
@@ -39,11 +37,7 @@ class VideoInteractionOverlay extends StatefulWidget {
 class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _elementsController;
-
   late final Animation<double> _elementsOpacity;
-
-  late final Animation<Offset> _elementsOffset;
-
   late final Animation<double> _commentScale;
 
   Timer? _entryTimer;
@@ -66,28 +60,20 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
 
     _elementsController = AnimationController(
       vsync: this,
-      duration: HexaMotion.slow,
+      duration: const Duration(milliseconds: 320),
     );
 
     _elementsOpacity = CurvedAnimation(
       parent: _elementsController,
-      curve: const Interval(0, 0.72, curve: HexaMotion.enter),
-      reverseCurve: HexaMotion.exit,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
     );
 
-    _elementsOffset =
-        Tween<Offset>(begin: const Offset(0, 0.025), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _elementsController,
-            curve: HexaMotion.enter,
-            reverseCurve: HexaMotion.exit,
-          ),
-        );
-
-    _commentScale = Tween<double>(begin: 0.84, end: 1).animate(
+    _commentScale = Tween<double>(begin: 0.92, end: 1).animate(
       CurvedAnimation(
         parent: _elementsController,
-        curve: const Interval(0.24, 1, curve: Curves.easeOutBack),
+        curve: Curves.easeOutBack,
+        reverseCurve: Curves.easeInCubic,
       ),
     );
   }
@@ -176,7 +162,7 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
   void _scheduleEntry() {
     _entryTimer?.cancel();
 
-    _entryTimer = Timer(const Duration(milliseconds: 240), () {
+    _entryTimer = Timer(const Duration(milliseconds: 180), () {
       _entryTimer = null;
 
       if (!mounted || !widget.enabled || _isActionBarVisible) {
@@ -299,9 +285,17 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Video bağlantısı kopyalandı.'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Text('Video bağlantısı kopyalandı.'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xF216161B),
+          elevation: 0,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          ),
         ),
       );
   }
@@ -328,22 +322,6 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
     unawaited(widget.onOpenComments());
   }
 
-  String _formatCount(int count) {
-    if (count >= 1000000000) {
-      return '${(count / 1000000000).toStringAsFixed(1)}B';
-    }
-
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    }
-
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -366,8 +344,6 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
               : rawOrigin.dy.clamp(92, constraints.maxHeight - 110).toDouble(),
         );
 
-        final bottomInset = MediaQuery.paddingOf(context).bottom;
-
         return Stack(
           fit: StackFit.expand,
           children: <Widget>[
@@ -389,25 +365,9 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
               ),
             ),
 
-            IgnorePointer(
-              child: FadeTransition(
-                opacity: _elementsOpacity,
-                child: SlideTransition(
-                  position: _elementsOffset,
-                  child: Positioned(
-                    left: HexaSpacing.lg,
-                    bottom: bottomInset + HexaSpacing.lg,
-                    child: _ViewSignal(
-                      value: _formatCount(widget.video.viewsCount),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
             Positioned(
-              right: HexaSpacing.sm,
-              top: constraints.maxHeight * 0.42,
+              right: 14,
+              top: constraints.maxHeight * 0.48,
               child: IgnorePointer(
                 ignoring: _isActionBarVisible || !widget.enabled,
                 child: FadeTransition(
@@ -438,44 +398,6 @@ class _VideoInteractionOverlayState extends State<VideoInteractionOverlay>
   }
 }
 
-class _ViewSignal extends StatelessWidget {
-  const _ViewSignal({required this.value});
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: HexaColors.white,
-            fontWeight: FontWeight.w800,
-            shadows: const <Shadow>[
-              Shadow(color: HexaColors.earth, blurRadius: 10),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          width: 42,
-          height: 2,
-          decoration: BoxDecoration(
-            gradient: HexaGradients.navIndicator,
-            borderRadius: HexaRadius.borderPill,
-            boxShadow: const <BoxShadow>[
-              BoxShadow(color: HexaColors.signalGlow, blurRadius: 8),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _CommentPortal extends StatefulWidget {
   const _CommentPortal({required this.onTap});
 
@@ -490,6 +412,16 @@ class _CommentPortal extends StatefulWidget {
 class _CommentPortalState extends State<_CommentPortal> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = HexaMotion.reduceMotionOf(context);
@@ -500,35 +432,37 @@ class _CommentPortalState extends State<_CommentPortal> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) {
-          setState(() => _pressed = true);
+          _setPressed(true);
         },
         onTapCancel: () {
-          setState(() => _pressed = false);
+          _setPressed(false);
         },
         onTapUp: (_) {
-          setState(() => _pressed = false);
+          _setPressed(false);
           widget.onTap();
         },
         child: AnimatedScale(
-          scale: _pressed ? HexaMotion.pressScale : 1,
-          duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-          curve: HexaMotion.elastic,
-          child: Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: HexaColors.earth.withAlpha(92),
-              shape: BoxShape.circle,
-              border: Border.all(color: HexaColors.white.withAlpha(50)),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(color: Color(0x33000000), blurRadius: 14),
-              ],
-            ),
-            child: const Icon(
-              Icons.mode_comment_rounded,
-              color: HexaColors.white,
-              size: 21,
+          scale: _pressed ? 0.88 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Center(
+              child: Icon(
+                Icons.mode_comment_outlined,
+                color: Colors.white.withValues(alpha: 0.94),
+                size: 27,
+                shadows: const <Shadow>[
+                  Shadow(
+                    color: Color(0xB3000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

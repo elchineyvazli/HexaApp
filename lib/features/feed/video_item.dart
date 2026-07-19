@@ -38,6 +38,8 @@ class VideoItem extends ConsumerStatefulWidget {
 }
 
 class _VideoItemState extends ConsumerState<VideoItem> {
+  static const Color _videoBackground = Color(0xFF050507);
+
   final VideoWatchTimer _watchTimer = VideoWatchTimer();
 
   VideoPlayerController? _controller;
@@ -63,9 +65,7 @@ class _VideoItemState extends ConsumerState<VideoItem> {
   }
 
   bool get _canInteract {
-    return widget.isActive &&
-        _isInitialized &&
-        _errorMessage == null;
+    return widget.isActive && _isInitialized && _errorMessage == null;
   }
 
   @override
@@ -78,53 +78,41 @@ class _VideoItemState extends ConsumerState<VideoItem> {
   }
 
   @override
-  void didUpdateWidget(
-    covariant VideoItem oldWidget,
-  ) {
+  void didUpdateWidget(covariant VideoItem oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     final sourceChanged =
         oldWidget.video.id != widget.video.id ||
-        oldWidget.video.playbackUrl !=
-            widget.video.playbackUrl;
+        oldWidget.video.playbackUrl != widget.video.playbackUrl;
 
     if (sourceChanged) {
       unawaited(_replaceVideo());
       return;
     }
 
-    if (oldWidget.dismissInteractionToken !=
-        widget.dismissInteractionToken) {
+    if (oldWidget.dismissInteractionToken != widget.dismissInteractionToken) {
       if (_isActionBarOpen) {
         unawaited(_setActionBarOpen(false));
       }
 
       if (_isCommentSheetOpen) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) {
-            if (mounted && _isCommentSheetOpen) {
-              Navigator.of(
-                context,
-                rootNavigator: true,
-              ).maybePop();
-            }
-          },
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _isCommentSheetOpen) {
+            Navigator.of(context, rootNavigator: true).maybePop();
+          }
+        });
       }
     }
 
     if (oldWidget.isActive != widget.isActive) {
       if (widget.isActive) {
-        unawaited(
-          _prepareAndSynchronizePlayback(),
-        );
+        unawaited(_prepareAndSynchronizePlayback());
       } else {
         unawaited(_pauseAndRecordView());
       }
     }
 
-    if (oldWidget.shouldPreload !=
-        widget.shouldPreload) {
+    if (oldWidget.shouldPreload != widget.shouldPreload) {
       if (_shouldPrepare) {
         unawaited(_prepareController());
       } else if (!widget.isActive) {
@@ -147,109 +135,73 @@ class _VideoItemState extends ConsumerState<VideoItem> {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion =
-        HexaMotion.reduceMotionOf(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
     final errorMessage = _errorMessage;
-    final showLoading =
-        _isLoading && errorMessage == null;
+    final showLoading = _isLoading && errorMessage == null;
 
     return TickerMode(
-      enabled:
-          widget.isActive || widget.shouldPreload,
+      enabled: widget.isActive || widget.shouldPreload,
       child: ColoredBox(
-        color: HexaColors.earth,
+        color: _videoBackground,
         child: Stack(
           fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
           children: <Widget>[
             VideoSurface(
               controller: _controller,
               isInitialized: _isInitialized,
-              thumbnailUrl:
-                  widget.video.thumbnailUrl,
-              metadataAspectRatio:
-                  widget.video.aspectRatio,
+              thumbnailUrl: widget.video.thumbnailUrl,
+              metadataAspectRatio: widget.video.aspectRatio,
             ),
 
             AnimatedOpacity(
               opacity: _canInteract ? 1 : 0,
-              duration: reduceMotion
-                  ? Duration.zero
-                  : HexaMotion.normal,
+              duration: reduceMotion ? Duration.zero : HexaMotion.normal,
               curve: HexaMotion.enter,
               child: IgnorePointer(
                 ignoring: !_canInteract,
                 child: VideoInteractionOverlay(
                   video: widget.video,
                   enabled: _canInteract,
-                  dismissToken:
-                      widget.dismissInteractionToken,
-                  onTogglePlayback:
-                      _togglePlayback,
+                  dismissToken: widget.dismissInteractionToken,
+                  onTogglePlayback: _togglePlayback,
                   onOpenComments: _openComments,
-                  onActionBarVisibilityChanged:
-                      (value) {
+                  onActionBarVisibilityChanged: (value) {
                     if (!widget.isActive && value) {
                       return;
                     }
 
-                    unawaited(
-                      _setActionBarOpen(value),
-                    );
+                    unawaited(_setActionBarOpen(value));
                   },
                 ),
               ),
             ),
 
-            VideoPlaybackIndicator(
-              icon: _playbackIndicatorIcon,
-            ),
+            VideoPlaybackIndicator(icon: _playbackIndicatorIcon),
 
             IgnorePointer(
               child: AnimatedOpacity(
                 opacity: showLoading ? 1 : 0,
-                duration: reduceMotion
-                    ? Duration.zero
-                    : HexaMotion.fast,
+                duration: reduceMotion ? Duration.zero : HexaMotion.fast,
                 curve: HexaMotion.enter,
-                child: const Center(
-                  child: VideoLoadingIndicator(),
-                ),
+                child: const Center(child: VideoLoadingIndicator()),
               ),
             ),
 
             AnimatedSwitcher(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : HexaMotion.normal,
-              switchInCurve: HexaMotion.enter,
-              switchOutCurve: HexaMotion.exit,
-              transitionBuilder: (
-                child,
-                animation,
-              ) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin:
-                          HexaMotion.pageEnterOffset,
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
+              duration: reduceMotion ? Duration.zero : HexaMotion.normal,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
               },
               child: errorMessage == null
                   ? const SizedBox.shrink(
-                      key: ValueKey<String>(
-                        'no-video-error',
-                      ),
+                      key: ValueKey<String>('no-video-error'),
                     )
                   : VideoErrorView(
-                      key: ValueKey<String>(
-                        errorMessage,
-                      ),
+                      key: ValueKey<String>(errorMessage),
                       message: errorMessage,
                       onRetry: _retry,
                     ),

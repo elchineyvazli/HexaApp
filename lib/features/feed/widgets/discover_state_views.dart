@@ -7,77 +7,27 @@ class DiscoverHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HexaSpacing.md,
-        HexaSpacing.md,
-        HexaSpacing.md,
-        0,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: HexaColors.lavenderSoft,
-              borderRadius: BorderRadius.circular(HexaRadius.md),
-              border: Border.all(color: HexaColors.border),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.explore_rounded,
-              color: HexaColors.signalStrong,
-              size: 25,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Keşfet',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: HexaColors.inkOnDark,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.75,
+              height: 1.05,
             ),
           ),
-          const SizedBox(width: HexaSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Keşfet',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Topluluğun değer verdiği videolar',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: HexaColors.inkMuted),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: HexaColors.mintSoft,
-              borderRadius: BorderRadius.circular(HexaRadius.pill),
-              border: Border.all(color: HexaColors.mint),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  color: HexaColors.success,
-                  size: 15,
-                ),
-                SizedBox(width: 5),
-                Text(
-                  'ÖNE ÇIKAN',
-                  style: TextStyle(
-                    color: HexaColors.success,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.65,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            'Topluluğun öne çıkardığı videolar',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: HexaColors.inkMutedOnDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              letterSpacing: -0.10,
             ),
           ),
         ],
@@ -91,7 +41,37 @@ class DiscoverLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return Center(
+      child: Semantics(
+        label: 'Keşfet videoları yükleniyor',
+        liveRegion: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox.square(
+              dimension: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.1,
+                color: HexaColors.purple,
+                backgroundColor: Color(0x1AFFFFFF),
+                strokeCap: StrokeCap.round,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Videolar yükleniyor',
+              style: TextStyle(
+                color: Color(0x70FFFFFF),
+                fontSize: 13,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.08,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -104,35 +84,42 @@ class DiscoverErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(HexaSpacing.lg),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(HexaSpacing.lg),
-          decoration: BoxDecoration(
-            color: HexaColors.surface,
-            borderRadius: BorderRadius.circular(HexaRadius.lg),
-            border: Border.all(color: HexaColors.border),
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                size: 48,
-                color: HexaColors.error,
+            children: <Widget>[
+              Icon(
+                Icons.cloud_off_outlined,
+                size: 31,
+                color: Colors.white.withOpacity(0.32),
               ),
-              const SizedBox(height: HexaSpacing.md),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Keşfet yüklenemedi',
-                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xEFFFFFFF),
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.30,
+                ),
               ),
-              const SizedBox(height: HexaSpacing.xs),
+              const SizedBox(height: 8),
               Text(
                 message,
-                maxLines: 4,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: const TextStyle(
+                  color: Color(0x70FFFFFF),
+                  fontSize: 13,
+                  height: 1.42,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.08,
+                ),
               ),
             ],
           ),
@@ -154,51 +141,87 @@ class DiscoverEmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = hasSearch ? 'Sonuç bulunamadı' : 'Henüz video yok';
+
+    final message = hasSearch
+        ? 'Başka bir kelime, konu veya kullanıcı adı deneyebilirsin.'
+        : 'Yeni videolar paylaşıldığında burada görünmeye başlayacak.';
+
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(HexaSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 92,
-              height: 92,
-              decoration: const BoxDecoration(
-                color: HexaColors.signalSoft,
-                shape: BoxShape.circle,
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.055),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.07)),
+                ),
+                child: Icon(
+                  hasSearch ? Icons.search_off_rounded : Icons.explore_outlined,
+                  size: 27,
+                  color: Colors.white.withOpacity(0.56),
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(
-                hasSearch ? Icons.search_off_rounded : Icons.explore_outlined,
-                size: 42,
-                color: HexaColors.signalStrong,
+              const SizedBox(height: 19),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xEFFFFFFF),
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.30,
+                ),
               ),
-            ),
-            const SizedBox(height: HexaSpacing.lg),
-            Text(
-              hasSearch ? 'Eşleşen video bulunamadı' : 'Keşfedilecek video yok',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: HexaSpacing.xs),
-            Text(
-              hasSearch
-                  ? 'Başka bir kelime veya kullanıcı adı deneyebilirsin.'
-                  : 'Topluluk video paylaştıkça öne çıkan içerikler burada görünecek.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: HexaColors.inkMuted),
-            ),
-            if (hasSearch) ...[
-              const SizedBox(height: HexaSpacing.lg),
-              OutlinedButton.icon(
-                onPressed: onClearSearch,
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('Aramayı temizle'),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0x70FFFFFF),
+                  fontSize: 13,
+                  height: 1.42,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.08,
+                ),
               ),
+              if (hasSearch) ...<Widget>[
+                const SizedBox(height: 21),
+                OutlinedButton.icon(
+                  onPressed: onClearSearch,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white.withOpacity(0.88),
+                    backgroundColor: Colors.white.withOpacity(0.055),
+                    side: BorderSide(color: Colors.white.withOpacity(0.10)),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 17,
+                      vertical: 11,
+                    ),
+                    shape: const StadiumBorder(),
+                  ),
+                  icon: const Icon(Icons.close_rounded, size: 17),
+                  label: const Text(
+                    'Aramayı temizle',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.08,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -3,43 +3,44 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hexa/core/theme/hexa_theme.dart';
 
-/// Hexa'nın yeni marka işareti: altıgen yapı + kalp biçimli Signal.
+/// HEXA'nın sade marka işareti.
+///
+/// Koyu veya açık yüzey üzerinde kullanılabilen altıgen dış form ve
+/// merkezde Signal işaretinden oluşur.
 class HexagonLogo extends StatelessWidget {
-  const HexagonLogo({
-    this.size = 92,
-    this.showShadow = true,
-    super.key,
-  });
+  const HexagonLogo({this.size = 92, this.showShadow = true, super.key});
 
   final double size;
   final bool showShadow;
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+
     return Semantics(
       image: true,
-      label: 'Hexa Signal logosu',
+      label: 'HEXA logosu',
       child: SizedBox.square(
         dimension: size,
         child: Stack(
           alignment: Alignment.center,
-          children: [
+          children: <Widget>[
             CustomPaint(
               size: Size.square(size),
-              painter: HexagonPainter(showShadow: showShadow),
-            ),
-            Container(
-              width: size * 0.42,
-              height: size * 0.42,
-              decoration: const BoxDecoration(
-                color: HexaColors.signal,
-                shape: BoxShape.circle,
+              painter: HexagonPainter(
+                showShadow: showShadow,
+                brightness: brightness,
               ),
-              alignment: Alignment.center,
+            ),
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) {
+                return HexaGradients.signal.createShader(bounds);
+              },
               child: Icon(
                 Icons.favorite_rounded,
                 color: Colors.white,
-                size: size * 0.23,
+                size: size * 0.22,
               ),
             ),
           ],
@@ -50,21 +51,74 @@ class HexagonLogo extends StatelessWidget {
 }
 
 class HexagonPainter extends CustomPainter {
-  const HexagonPainter({this.showShadow = true});
+  const HexagonPainter({
+    this.showShadow = true,
+    this.brightness = Brightness.dark,
+  });
 
   final bool showShadow;
+  final Brightness brightness;
+
+  bool get _isDark {
+    return brightness == Brightness.dark;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide * 0.44;
+
+    final outerPath = _createHexagonPath(center: center, radius: radius);
+
+    if (showShadow) {
+      final glowPaint = Paint()
+        ..shader = HexaGradients.signal.createShader(bounds)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(2.0, size.shortestSide * 0.045)
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          size.shortestSide * 0.075,
+        );
+
+      canvas.drawPath(outerPath, glowPaint);
+    }
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = _isDark ? HexaColors.surfaceDark : HexaColors.surface;
+
+    canvas.drawPath(outerPath, fillPaint);
+
+    final borderPaint = Paint()
+      ..shader = HexaGradients.signal.createShader(bounds)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.3, size.shortestSide * 0.024)
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(outerPath, borderPaint);
+
+    final innerPath = _createHexagonPath(center: center, radius: radius * 0.76);
+
+    final innerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.7, size.shortestSide * 0.009)
+      ..color = _isDark
+          ? Colors.white.withOpacity(0.055)
+          : Colors.black.withOpacity(0.045);
+
+    canvas.drawPath(innerPath, innerPaint);
+  }
+
+  Path _createHexagonPath({required Offset center, required double radius}) {
     final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide * 0.47;
 
     for (var index = 0; index < 6; index++) {
-      final angle = -math.pi / 2 + (math.pi / 3 * index);
+      final angle = -math.pi / 2 + index * math.pi / 3;
+
       final point = Offset(
-        center.dx + radius * math.cos(angle),
-        center.dy + radius * math.sin(angle),
+        center.dx + math.cos(angle) * radius,
+        center.dy + math.sin(angle) * radius,
       );
 
       if (index == 0) {
@@ -73,39 +127,13 @@ class HexagonPainter extends CustomPainter {
         path.lineTo(point.dx, point.dy);
       }
     }
-    path.close();
 
-    if (showShadow) {
-      canvas.drawShadow(
-        path,
-        const Color(0x2AD83A56),
-        size.shortestSide * 0.1,
-        false,
-      );
-    }
-
-    final fillPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white,
-          HexaColors.signalSoft,
-        ],
-      ).createShader(Offset.zero & size);
-
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.4, size.shortestSide * 0.018).toDouble()
-      ..color = HexaColors.signal;
-
-    canvas.drawPath(path, fillPaint);
-    canvas.drawPath(path, borderPaint);
+    return path..close();
   }
 
   @override
   bool shouldRepaint(covariant HexagonPainter oldDelegate) {
-    return oldDelegate.showShadow != showShadow;
+    return oldDelegate.showShadow != showShadow ||
+        oldDelegate.brightness != brightness;
   }
 }
