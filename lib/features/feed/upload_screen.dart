@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hexa/core/theme/hexa_theme.dart';
-import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'feed_repository.dart';
@@ -26,7 +26,9 @@ class UploadScreen extends ConsumerStatefulWidget {
 
 class _UploadScreenState extends ConsumerState<UploadScreen> {
   final TextEditingController _captionController = TextEditingController();
+
   final ImagePicker _picker = ImagePicker();
+
   final VideoUploadPreparer _preparer = const VideoUploadPreparer();
 
   PreparedVideoUpload? _preparedVideo;
@@ -40,7 +42,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   double? _preparationProgress;
   String _preparationMessage = 'Video hazırlanıyor';
 
-  bool get _isBusy => _isPreparing || _isUploading;
+  bool get _isBusy {
+    return _isPreparing || _isUploading;
+  }
 
   Future<void> _pickVideo() async {
     if (_isBusy) {
@@ -74,7 +78,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           }
 
           setState(() {
-            _preparationProgress = progress.value.clamp(0, 1).toDouble();
+            _preparationProgress = progress.value.clamp(0.0, 1.0).toDouble();
+
             _preparationMessage = progress.message;
           });
         },
@@ -138,12 +143,14 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         }
 
         setState(() {
-          _progress = event.value.clamp(0, 1).toDouble();
+          _progress = event.value.clamp(0.0, 1.0).toDouble();
+
           _progressMessage = event.message;
         });
       }
 
       uploadSucceeded = true;
+
       ref.invalidate(feedControllerProvider);
 
       await prepared.deleteTemporaryFile();
@@ -156,9 +163,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _preparedVideo = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Video başarıyla yayınlandı.')),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Video başarıyla yayınlandı.')),
+        );
 
       Navigator.of(context).pop(true);
     } on VideoUploadException catch (error) {
@@ -216,95 +225,128 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   @override
   void dispose() {
     _captionController.dispose();
+
     unawaited(_preparer.cancelCompression());
+
     unawaited(_preparedVideo?.deleteTemporaryFile());
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final Widget screen;
+
     if (_isPreparing) {
-      return BusyUploadView(
+      screen = BusyUploadView(
         message: _preparationMessage,
         progress: _preparationProgress,
-        icon: Icons.video_settings_rounded,
+        icon: Icons.video_settings_outlined,
       );
-    }
-
-    if (_isUploading) {
-      return BusyUploadView(
+    } else if (_isUploading) {
+      screen = BusyUploadView(
         message: _progressMessage,
         progress: _progress,
-        icon: Icons.cloud_upload_rounded,
+        icon: Icons.cloud_upload_outlined,
       );
+    } else {
+      screen = _buildEditor();
     }
 
+    return Theme(
+      data: HexaTheme.darkTheme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: HexaColors.backgroundDark,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: screen,
+      ),
+    );
+  }
+
+  Widget _buildEditor() {
     final prepared = _preparedVideo;
 
     return Scaffold(
-      backgroundColor: HexaColors.background,
-      body: Stack(
-        children: [
-          const AuthBackground(),
-          SafeArea(
-            child: Column(
-              children: [
-                const UploadHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(
-                      HexaSpacing.md,
-                      HexaSpacing.sm,
-                      HexaSpacing.md,
-                      HexaSpacing.xl,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 620),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            UploadSection(
-                              title: 'Videonu seç',
-                              description:
-                                  'Çözünürlüğü korunur ve gerekiyorsa yüklemeden önce sıkıştırılır.',
-                              icon: Icons.video_library_rounded,
-                              child: UploadVideoPreview(
-                                videoFile: prepared?.videoFile,
-                                onPickVideo: _pickVideo,
-                              ),
+      backgroundColor: HexaColors.backgroundDark,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0xFF09090D),
+              HexaColors.backgroundDark,
+              HexaColors.backgroundDark,
+            ],
+            stops: <double>[0, 0.25, 1],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: <Widget>[
+              const UploadHeader(),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: Colors.white.withOpacity(0.065),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          UploadSection(
+                            title: 'Video',
+                            description:
+                                'Galerinden paylaşmak istediğin videoyu seç.',
+                            icon: Icons.video_library_outlined,
+                            child: UploadVideoPreview(
+                              videoFile: prepared?.videoFile,
+                              onPickVideo: _pickVideo,
                             ),
-                            if (prepared != null) ...[
-                              const SizedBox(height: HexaSpacing.md),
-                              PreparedVideoInfo(
-                                video: prepared,
-                                onRemove: _removeVideo,
-                              ),
-                            ],
-                            const SizedBox(height: HexaSpacing.md),
-                            UploadSection(
-                              title: 'Videonu anlat',
-                              description:
-                                  'İnsanlara videonun neden değerli olduğunu kısa ve açık biçimde anlat.',
-                              icon: Icons.edit_note_rounded,
-                              child: UploadFormFields(
-                                captionController: _captionController,
-                                onSubmit: _uploadVideo,
-                                isSubmitEnabled: prepared != null,
-                              ),
+                          ),
+                          if (prepared != null) ...[
+                            const SizedBox(height: 12),
+                            PreparedVideoInfo(
+                              video: prepared,
+                              onRemove: _removeVideo,
                             ),
                           ],
-                        ),
+                          const SizedBox(height: 24),
+                          UploadSection(
+                            title: 'Açıklama',
+                            description:
+                                'Videonu kısa ve anlaşılır biçimde anlat.',
+                            icon: Icons.notes_rounded,
+                            child: UploadFormFields(
+                              captionController: _captionController,
+                              onSubmit: _uploadVideo,
+                              isSubmitEnabled: prepared != null,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

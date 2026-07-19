@@ -52,7 +52,7 @@ extension _VideoItemInteractions on _VideoItemState {
       _playbackIndicatorIcon = icon;
     });
 
-    _playbackIndicatorTimer = Timer(HexaMotion.breathe, () {
+    _playbackIndicatorTimer = Timer(const Duration(milliseconds: 620), () {
       if (!mounted) {
         return;
       }
@@ -137,7 +137,9 @@ extension _VideoItemInteractions on _VideoItemState {
 
     if (!mounted) {
       _isCommentSheetOpen = false;
+
       widget.onInteractionStateChanged?.call(false);
+
       return;
     }
 
@@ -149,8 +151,9 @@ extension _VideoItemInteractions on _VideoItemState {
         isScrollControlled: true,
         isDismissible: true,
         enableDrag: true,
-        backgroundColor: HexaColors.transparent,
-        barrierColor: HexaColors.earth.withAlpha(150),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        barrierColor: const Color(0xB8050507),
         builder: (_) {
           return HexaCommentSheet(videoId: widget.video.id);
         },

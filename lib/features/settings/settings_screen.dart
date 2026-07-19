@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/hexa_theme.dart';
 import 'app_settings_controller.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -9,196 +11,191 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ayarlar')),
-      body: Stack(
-        children: [
-          if (!settings.isLoaded)
-            const Center(child: CircularProgressIndicator())
-          else
-            ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-              children: [
-                _Section(
-                  title: 'Hexa modu',
-                  description:
-                      'Original tam deneyimi, Lite ise daha düşük veri, pil ve depolama kullanımını hedefler.',
-                  child: Column(
-                    children: [
-                      _ModeCard(
-                        title: 'Hexa Original',
-                        description:
-                            'Tam video kalitesi, animasyonlar, lo-fi ve gelişmiş özellikler.',
-                        icon: Icons.auto_awesome_rounded,
-                        selected: settings.appMode == HexaAppMode.original,
-                        onTap: () {
-                          _setOriginalMode(context, ref);
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _ModeCard(
-                        title: 'Hexa Lite',
-                        description:
-                            'Daha az ön yükleme, hafif animasyonlar ve küçük önbellek.',
-                        icon: Icons.energy_savings_leaf_rounded,
-                        selected: settings.appMode == HexaAppMode.lite,
-                        onTap: () {
-                          _requestLiteMode(context, ref);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                _Section(
-                  title: 'Görünüm',
-                  description:
-                      'Tema seçimi uygulama yeniden açıldığında korunur.',
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.7,
-                    children: [
-                      _ThemeCard(
-                        title: 'Sistem',
-                        icon: Icons.settings_suggest_rounded,
-                        selected:
-                            settings.themePreference ==
-                            HexaThemePreference.system,
-                        onTap: () {
-                          _setTheme(ref, HexaThemePreference.system);
-                        },
-                      ),
-                      _ThemeCard(
-                        title: 'Light',
-                        icon: Icons.light_mode_rounded,
-                        selected:
-                            settings.themePreference ==
-                            HexaThemePreference.light,
-                        onTap: () {
-                          _setTheme(ref, HexaThemePreference.light);
-                        },
-                      ),
-                      _ThemeCard(
-                        title: 'Dark',
-                        icon: Icons.dark_mode_rounded,
-                        selected:
-                            settings.themePreference ==
-                            HexaThemePreference.dark,
-                        onTap: () {
-                          _setTheme(ref, HexaThemePreference.dark);
-                        },
-                      ),
-                      _ThemeCard(
-                        title: 'Green',
-                        icon: Icons.eco_rounded,
-                        selected:
-                            settings.themePreference ==
-                            HexaThemePreference.green,
-                        onTap: () {
-                          _setTheme(ref, HexaThemePreference.green);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                _Section(
-                  title: 'Lite davranışı',
-                  description:
-                      'Görünmemesi ve backend işleminin durması aynı şey değildir.',
-                  child: Column(
-                    children: [
-                      _InfoRow(
-                        icon: Icons.play_circle_outline,
-                        title: 'Yalnızca gerekli videolar hazırlanır',
-                        enabled: settings.isLite,
-                      ),
-                      _InfoRow(
-                        icon: Icons.animation_rounded,
-                        title: 'Ağır animasyonlar azaltılır',
-                        enabled: settings.isLite,
-                      ),
-                      _InfoRow(
-                        icon: Icons.analytics_outlined,
-                        title: 'Gelişmiş analiz sayfaları gizlenir',
-                        enabled: settings.isLite,
-                      ),
-                      _InfoRow(
-                        icon: Icons.favorite_rounded,
-                        title:
-                            'Signal, yorum, takip ve sayaçlar çalışmaya devam eder',
-                        enabled: true,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 22),
-                _Section(
-                  title: 'Depolama',
-                  description:
-                      'Hesap ve bulut verileri silinmez. Yalnızca yeniden indirilebilen geçici dosyalar temizlenir.',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.cleaning_services_rounded),
-                    ),
-                    title: const Text('Geçici dosyaları temizle'),
-                    subtitle: const Text(
-                      'Görsel ve indirilebilir medya önbelleğini temizler.',
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: settings.isBusy
-                        ? null
-                        : () {
-                            _clearTemporaryFiles(context, ref);
-                          },
-                  ),
-                ),
-                const SizedBox(height: 22),
-                const _Section(
-                  title: 'Yakında',
-                  description:
-                      'Sonraki profil ve güvenlik aşamalarında bağlanacak ayarlar.',
-                  child: Column(
-                    children: [
-                      _ComingSoonRow(
-                        icon: Icons.notifications_outlined,
-                        title: 'Bildirim tercihleri',
-                      ),
-                      _ComingSoonRow(
-                        icon: Icons.shield_outlined,
-                        title: 'Gizlilik ve güvenlik',
-                      ),
-                      _ComingSoonRow(
-                        icon: Icons.video_settings_outlined,
-                        title: 'Video ve mobil veri kalitesi',
-                      ),
-                      _ComingSoonRow(
-                        icon: Icons.block_outlined,
-                        title: 'Engellenen kullanıcılar',
-                      ),
-                      _ComingSoonRow(
-                        icon: Icons.manage_accounts_outlined,
-                        title: 'Hesap yönetimi',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          if (settings.isBusy)
-            const Positioned.fill(
-              child: ColoredBox(
-                color: Color(0x33000000),
-                child: Center(child: CircularProgressIndicator()),
+    final backgroundColor = isDark
+        ? HexaColors.backgroundDark
+        : HexaColors.background;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: backgroundColor,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: <Widget>[
+              const _SettingsHeader(),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: theme.dividerColor.withOpacity(isDark ? 0.72 : 0.85),
               ),
-            ),
-        ],
+              Expanded(
+                child: Stack(
+                  children: <Widget>[
+                    if (!settings.isLoaded)
+                      const _SettingsLoadingView()
+                    else
+                      ListView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const ClampingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 42),
+                        children: <Widget>[
+                          _Section(
+                            title: 'Uygulama modu',
+                            description:
+                                'HEXA’nın performans ve medya kullanım biçimini seç.',
+                            child: _SettingsGroup(
+                              padding: const EdgeInsets.all(7),
+                              children: <Widget>[
+                                _ModeCard(
+                                  title: 'HEXA Original',
+                                  description:
+                                      'Tam video kalitesi, animasyonlar ve gelişmiş deneyim.',
+                                  icon: Icons.auto_awesome_rounded,
+                                  selected:
+                                      settings.appMode == HexaAppMode.original,
+                                  onTap: () {
+                                    _setOriginalMode(context, ref);
+                                  },
+                                ),
+                                const SizedBox(height: 7),
+                                _ModeCard(
+                                  title: 'HEXA Lite',
+                                  description:
+                                      'Daha düşük veri, pil ve depolama kullanımı.',
+                                  icon: Icons.energy_savings_leaf_outlined,
+                                  selected:
+                                      settings.appMode == HexaAppMode.lite,
+                                  onTap: () {
+                                    _requestLiteMode(context, ref);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          _Section(
+                            title: 'Görünüm',
+                            description: 'Uygulamanın genel tema tercihi.',
+                            child: _ThemeSelector(
+                              preference: settings.themePreference,
+                              onSelected: (preference) {
+                                _setTheme(ref, preference);
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          _Section(
+                            title: 'Lite davranışı',
+                            description: settings.isLite
+                                ? 'Lite modunda kullanılan optimizasyonlar.'
+                                : 'Lite moda geçtiğinde uygulanacak değişiklikler.',
+                            child: _SettingsGroup(
+                              children: <Widget>[
+                                _InfoRow(
+                                  icon: Icons.play_circle_outline_rounded,
+                                  title: 'Yalnızca gerekli videolar hazırlanır',
+                                  enabled: settings.isLite,
+                                ),
+                                const _GroupDivider(),
+                                _InfoRow(
+                                  icon: Icons.animation_rounded,
+                                  title: 'Ağır animasyonlar azaltılır',
+                                  enabled: settings.isLite,
+                                ),
+                                const _GroupDivider(),
+                                _InfoRow(
+                                  icon: Icons.analytics_outlined,
+                                  title: 'Gelişmiş analiz sayfaları gizlenir',
+                                  enabled: settings.isLite,
+                                ),
+                                const _GroupDivider(),
+                                const _InfoRow(
+                                  icon: Icons.favorite_border_rounded,
+                                  title:
+                                      'Beğeni, yorum ve takip özellikleri çalışmaya devam eder',
+                                  enabled: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          _Section(
+                            title: 'Depolama',
+                            description: 'Hesap ve bulut verilerin etkilenmez.',
+                            child: _SettingsGroup(
+                              children: <Widget>[
+                                _SettingsActionRow(
+                                  icon: Icons.cleaning_services_outlined,
+                                  title: 'Geçici dosyaları temizle',
+                                  subtitle:
+                                      'İndirilebilir medya ve görsel önbelleği',
+                                  enabled: !settings.isBusy,
+                                  onTap: () {
+                                    _clearTemporaryFiles(context, ref);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const _Section(
+                            title: 'Diğer ayarlar',
+                            description:
+                                'Gelecek sürümlerde kullanıma açılacak seçenekler.',
+                            child: _SettingsGroup(
+                              children: <Widget>[
+                                _ComingSoonRow(
+                                  icon: Icons.notifications_none_rounded,
+                                  title: 'Bildirim tercihleri',
+                                ),
+                                _GroupDivider(),
+                                _ComingSoonRow(
+                                  icon: Icons.shield_outlined,
+                                  title: 'Gizlilik ve güvenlik',
+                                ),
+                                _GroupDivider(),
+                                _ComingSoonRow(
+                                  icon: Icons.video_settings_outlined,
+                                  title: 'Video ve mobil veri kalitesi',
+                                ),
+                                _GroupDivider(),
+                                _ComingSoonRow(
+                                  icon: Icons.block_outlined,
+                                  title: 'Engellenen kullanıcılar',
+                                ),
+                                _GroupDivider(),
+                                _ComingSoonRow(
+                                  icon: Icons.manage_accounts_outlined,
+                                  title: 'Hesap yönetimi',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (settings.isBusy)
+                      const Positioned.fill(child: _SettingsBusyOverlay()),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -213,9 +210,11 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hexa Original etkinleştirildi.')),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('HEXA Original etkinleştirildi.')),
+        );
     } catch (_) {
       _showError(context);
     }
@@ -226,23 +225,33 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Hexa Lite etkinleştirilsin mi?'),
+          title: const Text('HEXA Lite’a geçilsin mi?'),
           content: const Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Lite moda geçildiğinde:'),
-              SizedBox(height: 12),
-              Text('• Video ön yükleme azaltılır'),
-              SizedBox(height: 6),
-              Text('• Ağır animasyonlar kapatılır'),
-              SizedBox(height: 6),
-              Text('• Geçici medya önbelleği temizlenir'),
-              SizedBox(height: 6),
-              Text('• Signal, yorum, takip ve sayaçlar çalışmaya devam eder'),
+            children: <Widget>[
+              _LiteDialogRow(
+                icon: Icons.play_circle_outline_rounded,
+                text: 'Video ön yükleme azaltılır.',
+              ),
+              SizedBox(height: 13),
+              _LiteDialogRow(
+                icon: Icons.animation_rounded,
+                text: 'Ağır animasyonlar kapatılır.',
+              ),
+              SizedBox(height: 13),
+              _LiteDialogRow(
+                icon: Icons.cleaning_services_outlined,
+                text: 'Geçici medya önbelleği temizlenir.',
+              ),
+              SizedBox(height: 13),
+              _LiteDialogRow(
+                icon: Icons.favorite_border_rounded,
+                text:
+                    'Beğeni, yorum ve takip özellikleri çalışmaya devam eder.',
+              ),
             ],
           ),
-          actions: [
+          actions: <Widget>[
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop(false);
@@ -271,13 +280,15 @@ class SettingsScreen extends ConsumerWidget {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Hexa Lite etkinleştirildi ve geçici önbellek temizlendi.',
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'HEXA Lite etkinleştirildi ve geçici önbellek temizlendi.',
+            ),
           ),
-        ),
-      );
+        );
     } catch (_) {
       _showError(context);
     }
@@ -294,15 +305,59 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Geçici dosyalar temizlendi.')),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Geçici dosyalar temizlendi.')),
+      );
   }
 
   void _showError(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Ayar değiştirilemedi.')));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Ayar değiştirilemedi.')));
+  }
+}
+
+class _SettingsHeader extends StatelessWidget {
+  const _SettingsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      height: 64,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: <Widget>[
+            if (canPop)
+              IconButton(
+                tooltip: 'Geri',
+                onPressed: () {
+                  Navigator.of(context).maybePop();
+                },
+                icon: const Icon(Icons.arrow_back_rounded, size: 22),
+              )
+            else
+              const SizedBox(width: 48),
+            const SizedBox(width: 2),
+            Expanded(
+              child: Text(
+                'Ayarlar',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.42,
+                ),
+              ),
+            ),
+            const SizedBox(width: 48),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -321,35 +376,67 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return DecoratedBox(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.25,
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Text(
+            description,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w400,
+              letterSpacing: -0.06,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        child,
+      ],
+    );
+  }
+}
+
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({
+    required this.children,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: padding,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            child,
-          ],
+        color: isDark ? HexaColors.surfaceDark : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(
+            isDark ? 0.62 : 0.85,
+          ),
         ),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
@@ -371,55 +458,169 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
     return Material(
-      color: selected ? scheme.primaryContainer : scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+        overlayColor: WidgetStatePropertyAll<Color>(
+          HexaColors.purple.withOpacity(0.10),
+        ),
+        child: AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.fromLTRB(13, 13, 12, 13),
+          decoration: BoxDecoration(
+            color: selected
+                ? HexaColors.purple.withOpacity(
+                    theme.brightness == Brightness.dark ? 0.13 : 0.09,
+                  )
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected
+                  ? HexaColors.purple.withOpacity(0.48)
+                  : Colors.transparent,
+            ),
+          ),
           child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: selected
-                    ? scheme.primary
-                    : scheme.surfaceContainerHighest,
-                foregroundColor: selected
-                    ? scheme.onPrimary
-                    : scheme.onSurfaceVariant,
-                child: Icon(icon),
+            children: <Widget>[
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? HexaColors.purple.withOpacity(0.16)
+                      : theme.colorScheme.surfaceContainerHighest.withOpacity(
+                          0.62,
+                        ),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: selected
+                      ? HexaColors.purple
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: <Widget>[
                     Text(
                       title,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.16,
+                      ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       description,
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: -0.04,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                color: selected ? scheme.primary : scheme.outline,
+              const SizedBox(width: 10),
+              AnimatedSwitcher(
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                child: Icon(
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  key: ValueKey<bool>(selected),
+                  size: 20,
+                  color: selected
+                      ? HexaColors.purple
+                      : theme.colorScheme.outline,
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ThemeSelector extends StatelessWidget {
+  const _ThemeSelector({required this.preference, required this.onSelected});
+
+  final HexaThemePreference preference;
+  final ValueChanged<HexaThemePreference> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 8) / 2;
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: <Widget>[
+            SizedBox(
+              width: itemWidth,
+              child: _ThemeCard(
+                title: 'Sistem',
+                icon: Icons.settings_suggest_outlined,
+                selected: preference == HexaThemePreference.system,
+                onTap: () {
+                  onSelected(HexaThemePreference.system);
+                },
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: _ThemeCard(
+                title: 'Açık',
+                icon: Icons.light_mode_outlined,
+                selected: preference == HexaThemePreference.light,
+                onTap: () {
+                  onSelected(HexaThemePreference.light);
+                },
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: _ThemeCard(
+                title: 'Koyu',
+                icon: Icons.dark_mode_outlined,
+                selected: preference == HexaThemePreference.dark,
+                onTap: () {
+                  onSelected(HexaThemePreference.dark);
+                },
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: _ThemeCard(
+                title: 'Yeşil',
+                icon: Icons.eco_outlined,
+                selected: preference == HexaThemePreference.green,
+                onTap: () {
+                  onSelected(HexaThemePreference.green);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -439,33 +640,60 @@ class _ThemeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
     return Material(
-      color: selected ? scheme.primaryContainer : scheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
+        borderRadius: BorderRadius.circular(17),
+        child: AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 170),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          decoration: BoxDecoration(
+            color: selected
+                ? HexaColors.purple.withOpacity(
+                    theme.brightness == Brightness.dark ? 0.13 : 0.09,
+                  )
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: selected
+                  ? HexaColors.purple.withOpacity(0.52)
+                  : theme.colorScheme.outlineVariant,
+            ),
+          ),
           child: Row(
-            children: [
+            children: <Widget>[
               Icon(
                 icon,
-                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                size: 19,
+                color: selected
+                    ? HexaColors.purple
+                    : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    letterSpacing: -0.10,
                   ),
                 ),
               ),
               if (selected)
-                Icon(Icons.check_rounded, size: 18, color: scheme.primary),
+                const Icon(
+                  Icons.check_rounded,
+                  color: HexaColors.purple,
+                  size: 17,
+                ),
             ],
           ),
         ),
@@ -487,21 +715,111 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.fromLTRB(15, 13, 14, 13),
       child: Row(
-        children: [
-          Icon(icon, size: 20, color: scheme.primary),
-          const SizedBox(width: 11),
-          Expanded(child: Text(title)),
+        children: <Widget>[
+          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontSize: 13,
+                height: 1.32,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.10,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           Icon(
-            enabled ? Icons.check_circle_rounded : Icons.remove_circle_outline,
-            size: 19,
-            color: enabled ? scheme.primary : scheme.outline,
+            enabled ? Icons.check_rounded : Icons.remove_rounded,
+            size: 18,
+            color: enabled ? HexaColors.purple : theme.colorScheme.outline,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsActionRow extends StatelessWidget {
+  const _SettingsActionRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 13, 10, 13),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                icon,
+                size: 21,
+                color: enabled
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.disabledColor,
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: enabled
+                            ? theme.colorScheme.onSurface
+                            : theme.disabledColor,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 11.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: -0.04,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 21,
+                color: theme.colorScheme.outline,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -515,20 +833,149 @@ class _ComingSoonRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(15, 13, 14, 13),
       child: Row(
-        children: [
-          Icon(icon, size: 20, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 11),
-          Expanded(child: Text(title)),
+        children: <Widget>[
+          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.10,
+              ),
+            ),
+          ),
           Text(
             'Yakında',
-            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+            style: TextStyle(
+              color: theme.colorScheme.outline,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.04,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GroupDivider extends StatelessWidget {
+  const _GroupDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 48),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: Theme.of(context).dividerColor.withOpacity(0.74),
+      ),
+    );
+  }
+}
+
+class _LiteDialogRow extends StatelessWidget {
+  const _LiteDialogRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: HexaColors.purple.withOpacity(0.11),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 16, color: HexaColors.purple),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: 1.4,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsLoadingView extends StatelessWidget {
+  const _SettingsLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Semantics(
+        label: 'Ayarlar yükleniyor',
+        liveRegion: true,
+        child: const SizedBox.square(
+          dimension: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.1,
+            color: HexaColors.purple,
+            backgroundColor: Color(0x1AFFFFFF),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsBusyOverlay extends StatelessWidget {
+  const _SettingsBusyOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return ColoredBox(
+      color: isDark ? const Color(0xA6050507) : const Color(0x80000000),
+      child: Center(
+        child: Container(
+          width: 62,
+          height: 62,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isDark
+                ? HexaColors.surfaceStrongDark
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: const SizedBox.square(
+            dimension: 23,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: HexaColors.purple,
+            ),
+          ),
+        ),
       ),
     );
   }

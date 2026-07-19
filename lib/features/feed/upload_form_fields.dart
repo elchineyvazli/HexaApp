@@ -41,8 +41,14 @@ class _UploadFormFieldsState extends State<UploadFormFields> {
       return;
     }
 
+    final nextFocused = _focusNode.hasFocus;
+
+    if (_focused == nextFocused) {
+      return;
+    }
+
     setState(() {
-      _focused = _focusNode.hasFocus;
+      _focused = nextFocused;
     });
   }
 
@@ -57,128 +63,115 @@ class _UploadFormFieldsState extends State<UploadFormFields> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: reduceMotion ? 1 : 0, end: 1),
-      duration: reduceMotion ? Duration.zero : HexaMotion.slow,
-      curve: HexaMotion.listEnter,
-      builder: (context, value, child) {
-        final visible = value.clamp(0, 1).toDouble();
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: widget.captionController,
+      builder: (context, textValue, child) {
+        final characterCount = textValue.text.length;
 
-        return Opacity(
-          opacity: visible,
-          child: Transform.translate(
-            offset: Offset(0, 12 * (1 - visible)),
-            child: child,
-          ),
-        );
-      },
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: widget.captionController,
-        builder: (context, textValue, child) {
-          final characterCount = textValue.text.length;
-
-          return AnimatedContainer(
-            duration: reduceMotion ? Duration.zero : HexaMotion.normal,
-            curve: HexaMotion.emphasized,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withAlpha(220),
-              borderRadius: HexaRadius.borderLg,
-              border: Border.all(
-                color: _focused
-                    ? theme.colorScheme.primary.withAlpha(145)
-                    : theme.colorScheme.outlineVariant,
-                width: _focused ? 1.4 : 1,
-              ),
-              boxShadow: _focused ? HexaShadows.signal : HexaShadows.none,
+        return AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.fromLTRB(15, 14, 10, 10),
+          decoration: BoxDecoration(
+            color: _focused
+                ? HexaColors.surfaceMutedDark
+                : HexaColors.surfaceDark,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: _focused
+                  ? HexaColors.purple.withOpacity(0.72)
+                  : Colors.white.withOpacity(0.08),
+              width: 1,
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HexaSpacing.md,
-                HexaSpacing.sm,
-                HexaSpacing.sm,
-                HexaSpacing.sm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  TextField(
-                    controller: widget.captionController,
-                    focusNode: _focusNode,
-                    enabled: !widget.isSubmitting,
-                    minLines: 2,
-                    maxLines: 5,
-                    maxLength: UploadFormFields.maxCaptionLength,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.newline,
-                    keyboardType: TextInputType.multiline,
-                    onTapOutside: (_) {
-                      _focusNode.unfocus();
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              TextField(
+                controller: widget.captionController,
+                focusNode: _focusNode,
+                enabled: !widget.isSubmitting,
+                minLines: 3,
+                maxLines: 6,
+                maxLength: UploadFormFields.maxCaptionLength,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.newline,
+                keyboardType: TextInputType.multiline,
+                cursorColor: HexaColors.purple,
+                cursorWidth: 1.6,
+                onTapOutside: (_) {
+                  _focusNode.unfocus();
+                },
+                buildCounter:
+                    (
+                      context, {
+                      required currentLength,
+                      required isFocused,
+                      required maxLength,
+                    }) {
+                      return null;
                     },
-                    buildCounter:
-                        (
-                          context, {
-                          required currentLength,
-                          required isFocused,
-                          required maxLength,
-                        }) {
-                          return null;
-                        },
-                    decoration: InputDecoration(
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: 'Bir düşünce bırak…',
-                      hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withAlpha(
-                          150,
-                        ),
+                decoration: const InputDecoration(
+                  filled: false,
+                  isDense: true,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: 'Videon hakkında bir şeyler yaz...',
+                  hintStyle: TextStyle(
+                    color: Color(0x70FFFFFF),
+                    fontSize: 14,
+                    height: 1.42,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.12,
+                  ),
+                ),
+                style: const TextStyle(
+                  color: Color(0xF2FFFFFF),
+                  fontSize: 14,
+                  height: 1.42,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.12,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 1),
+                    child: Text(
+                      '$characterCount / '
+                      '${UploadFormFields.maxCaptionLength}',
+                      style: TextStyle(
+                        color:
+                            characterCount >= UploadFormFields.maxCaptionLength
+                            ? HexaColors.error
+                            : Colors.white.withOpacity(0.38),
+                        fontSize: 11,
+                        height: 1,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.04,
                       ),
-                    ),
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.42,
                     ),
                   ),
-                  const SizedBox(height: HexaSpacing.sm),
-                  Row(
-                    children: <Widget>[
-                      AnimatedSwitcher(
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : HexaMotion.fast,
-                        child: Text(
-                          characterCount == 0
-                              ? 'Açıklama isteğe bağlı'
-                              : '$characterCount/'
-                                    '${UploadFormFields.maxCaptionLength}',
-                          key: ValueKey<int>(
-                            characterCount == 0 ? -1 : characterCount,
-                          ),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      _PublishControl(
-                        enabled: widget.isSubmitEnabled && !widget.isSubmitting,
-                        loading: widget.isSubmitting,
-                        onTap: widget.onSubmit,
-                      ),
-                    ],
+                  const Spacer(),
+                  _PublishControl(
+                    enabled: widget.isSubmitEnabled && !widget.isSubmitting,
+                    loading: widget.isSubmitting,
+                    onTap: widget.onSubmit,
                   ),
                 ],
               ),
-            ),
-          );
-        },
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -203,14 +196,23 @@ class _PublishControl extends StatefulWidget {
 class _PublishControlState extends State<_PublishControl> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    final foreground = widget.enabled
-        ? HexaColors.white
-        : theme.colorScheme.onSurfaceVariant;
+    final foregroundColor = widget.enabled
+        ? Colors.white
+        : Colors.white.withOpacity(0.34);
 
     return Semantics(
       button: true,
@@ -220,65 +222,78 @@ class _PublishControlState extends State<_PublishControl> {
         behavior: HitTestBehavior.opaque,
         onTapDown: widget.enabled
             ? (_) {
-                setState(() => _pressed = true);
+                _setPressed(true);
               }
             : null,
         onTapCancel: widget.enabled
             ? () {
-                setState(() => _pressed = false);
+                _setPressed(false);
               }
             : null,
         onTapUp: widget.enabled
             ? (_) {
-                setState(() => _pressed = false);
+                _setPressed(false);
                 widget.onTap();
               }
             : null,
         child: AnimatedScale(
-          scale: _pressed ? HexaMotion.pressScale : 1,
-          duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-          curve: HexaMotion.elastic,
+          scale: _pressed ? 0.92 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 130),
+          curve: Curves.easeOutCubic,
           child: AnimatedContainer(
-            duration: reduceMotion ? Duration.zero : HexaMotion.normal,
-            curve: HexaMotion.emphasized,
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
             height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: HexaSpacing.md),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              gradient: widget.enabled ? HexaGradients.signal : null,
               color: widget.enabled
-                  ? null
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: HexaRadius.borderPill,
-              boxShadow: widget.enabled ? HexaShadows.signal : HexaShadows.none,
+                  ? HexaColors.purple
+                  : Colors.white.withOpacity(0.065),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: widget.enabled
+                    ? Colors.white.withOpacity(0.12)
+                    : Colors.white.withOpacity(0.06),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 AnimatedSwitcher(
-                  duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 160),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
                   child: widget.loading
                       ? SizedBox.square(
-                          key: const ValueKey<String>('loading'),
+                          key: const ValueKey<String>('upload-loading'),
                           dimension: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: foreground,
+                            color: foregroundColor,
                           ),
                         )
                       : Icon(
                           Icons.arrow_upward_rounded,
-                          key: const ValueKey<String>('publish'),
+                          key: const ValueKey<String>('upload-publish'),
                           size: 18,
-                          color: foreground,
+                          color: foregroundColor,
                         ),
                 ),
-                const SizedBox(width: HexaSpacing.xs),
+                const SizedBox(width: 7),
                 Text(
                   'Yayınla',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                  style: TextStyle(
+                    color: foregroundColor,
+                    fontSize: 13,
+                    height: 1,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.10,
                   ),
                 ),
               ],

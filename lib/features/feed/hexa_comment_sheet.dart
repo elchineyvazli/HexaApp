@@ -26,6 +26,9 @@ class HexaCommentSheet extends StatefulWidget {
 }
 
 class _HexaCommentSheetState extends State<HexaCommentSheet> {
+  static const Color _panelBackground = Color(0xF7111116);
+  static const Color _accentPurple = Color(0xFF8B5CF6);
+
   late final TextEditingController _commentController;
   late final FocusNode _commentFocusNode;
 
@@ -46,8 +49,14 @@ class _HexaCommentSheetState extends State<HexaCommentSheet> {
       return;
     }
 
+    final nextFocused = _commentFocusNode.hasFocus;
+
+    if (_isFocused == nextFocused) {
+      return;
+    }
+
     setState(() {
-      _isFocused = _commentFocusNode.hasFocus;
+      _isFocused = nextFocused;
     });
   }
 
@@ -188,48 +197,81 @@ class _HexaCommentSheetState extends State<HexaCommentSheet> {
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xF216161B),
+          elevation: 0,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+        ),
+      );
+  }
+
+  void _closeSheet() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final mediaQuery = MediaQuery.of(context);
+    final keyboardInset = mediaQuery.viewInsets.bottom;
+    final screenHeight = mediaQuery.size.height;
 
-    final screenHeight = MediaQuery.sizeOf(context).height;
-
-    final panelHeight = screenHeight * 0.72;
+    final panelHeight = (screenHeight * 0.74)
+        .clamp(420.0, screenHeight - 18)
+        .toDouble();
 
     return AnimatedPadding(
-      duration: HexaMotion.normal,
-      curve: HexaMotion.emphasized,
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
       padding: EdgeInsets.only(bottom: keyboardInset),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
           height: panelHeight,
           child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(HexaRadius.lg),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-              child: Container(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: HexaColors.earth.withAlpha(222),
+                  color: _panelBackground,
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(HexaRadius.lg),
+                    top: Radius.circular(30),
                   ),
                   border: Border(
-                    top: BorderSide(color: HexaColors.white.withAlpha(36)),
+                    top: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
                   ),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x99000000),
+                      blurRadius: 42,
+                      offset: Offset(0, -12),
+                    ),
+                  ],
                 ),
                 child: SafeArea(
                   top: false,
                   child: Column(
                     children: <Widget>[
-                      const _CommentSheetHeader(),
+                      _CommentSheetHeader(onClose: _closeSheet),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.white.withValues(alpha: 0.07),
+                      ),
                       Expanded(child: CommentListView(videoId: widget.videoId)),
                       _CommentComposer(
                         controller: _commentController,
@@ -252,50 +294,64 @@ class _HexaCommentSheetState extends State<HexaCommentSheet> {
 }
 
 class _CommentSheetHeader extends StatelessWidget {
-  const _CommentSheetHeader();
+  const _CommentSheetHeader({required this.onClose});
+
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HexaSpacing.md,
-        HexaSpacing.sm,
-        HexaSpacing.md,
-        HexaSpacing.sm,
-      ),
-      child: Column(
+    return SizedBox(
+      height: 74,
+      child: Stack(
+        alignment: Alignment.center,
         children: <Widget>[
-          Container(
-            width: 38,
-            height: 3,
-            decoration: BoxDecoration(
-              color: HexaColors.white.withAlpha(76),
-              borderRadius: HexaRadius.borderPill,
+          Positioned(
+            top: 9,
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
           ),
-          const SizedBox(height: HexaSpacing.md),
-          Row(
-            children: <Widget>[
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: HexaColors.hopePink,
-                  shape: BoxShape.circle,
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(color: HexaColors.signalGlow, blurRadius: 11),
-                  ],
-                ),
+          const Positioned(
+            left: 56,
+            right: 56,
+            bottom: 16,
+            child: Text(
+              'Yorumlar',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xF2FFFFFF),
+                fontSize: 16,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.30,
               ),
-              const SizedBox(width: HexaSpacing.sm),
-              Text(
-                'Yorumlar',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: HexaColors.white,
-                  fontWeight: FontWeight.w900,
+            ),
+          ),
+          Positioned(
+            right: 12,
+            bottom: 8,
+            child: Semantics(
+              button: true,
+              label: 'Yorumları kapat',
+              child: IconButton(
+                tooltip: 'Kapat',
+                onPressed: onClose,
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.06),
+                  foregroundColor: Colors.white.withValues(alpha: 0.72),
+                  minimumSize: const Size(40, 40),
+                  maximumSize: const Size(40, 40),
                 ),
+                icon: const Icon(Icons.close_rounded, size: 20),
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -331,101 +387,141 @@ class _CommentComposer extends StatelessWidget {
       builder: (context, value, child) {
         final canSend = value.text.trim().isNotEmpty && !isPosting;
 
-        return AnimatedContainer(
-          duration: reduceMotion ? Duration.zero : HexaMotion.normal,
-          curve: HexaMotion.emphasized,
-          margin: const EdgeInsets.all(HexaSpacing.sm),
-          padding: const EdgeInsets.fromLTRB(
-            HexaSpacing.sm,
-            HexaSpacing.xs,
-            HexaSpacing.xs,
-            HexaSpacing.xs,
-          ),
+        return Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           decoration: BoxDecoration(
-            color: HexaColors.white.withAlpha(18),
-            borderRadius: HexaRadius.borderLg,
-            border: Border.all(
-              color: isFocused
-                  ? HexaColors.signal
-                  : HexaColors.white.withAlpha(30),
-              width: isFocused ? 1.4 : 1,
+            color: const Color(0xF20D0D11),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
             ),
-            boxShadow: isFocused ? HexaShadows.signal : HexaShadows.none,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              if (onOpenArtifacts != null)
-                IconButton(
-                  tooltip: 'Artefakt gönder',
-                  onPressed: isPosting ? null : onOpenArtifacts,
-                  icon: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: HexaColors.hopePink,
-                    size: 20,
-                  ),
-                ),
               Expanded(
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  enabled: !isPosting,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 500,
-                  textCapitalization: TextCapitalization.sentences,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  style: const TextStyle(
-                    color: HexaColors.white,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
+                child: AnimatedContainer(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  constraints: const BoxConstraints(minHeight: 46),
+                  padding: EdgeInsets.only(
+                    left: onOpenArtifacts == null ? 14 : 4,
+                    right: 10,
                   ),
-                  buildCounter:
-                      (
-                        context, {
-                        required currentLength,
-                        required isFocused,
-                        required maxLength,
-                      }) {
-                        return null;
-                      },
-                  decoration: const InputDecoration(
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    hintText: 'Bir iz bırak…',
-                    hintStyle: TextStyle(color: HexaColors.inkSoftOnDark),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: HexaSpacing.xs,
-                      vertical: HexaSpacing.sm,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: isFocused ? 0.08 : 0.055,
                     ),
+                    borderRadius: BorderRadius.circular(23),
+                    border: Border.all(
+                      color: isFocused
+                          ? const Color(0x998B5CF6)
+                          : Colors.white.withValues(alpha: 0.08),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      if (onOpenArtifacts != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: IconButton(
+                            tooltip: 'İçerik ekle',
+                            onPressed: isPosting ? null : onOpenArtifacts,
+                            visualDensity: VisualDensity.compact,
+                            style: IconButton.styleFrom(
+                              foregroundColor: Colors.white.withValues(
+                                alpha: 0.58,
+                              ),
+                              minimumSize: const Size(38, 38),
+                              maximumSize: const Size(38, 38),
+                            ),
+                            icon: const Icon(Icons.add_rounded, size: 22),
+                          ),
+                        ),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          enabled: !isPosting,
+                          minLines: 1,
+                          maxLines: 4,
+                          maxLength: 500,
+                          textCapitalization: TextCapitalization.sentences,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          cursorColor: const Color(0xFF8B5CF6),
+                          cursorWidth: 1.6,
+                          style: const TextStyle(
+                            color: Color(0xF2FFFFFF),
+                            fontSize: 14,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.12,
+                          ),
+                          buildCounter:
+                              (
+                                context, {
+                                required currentLength,
+                                required isFocused,
+                                required maxLength,
+                              }) {
+                                return null;
+                              },
+                          decoration: const InputDecoration(
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            isDense: true,
+                            hintText: 'Yorum ekle...',
+                            hintStyle: TextStyle(
+                              color: Color(0x73FFFFFF),
+                              fontSize: 14,
+                              height: 1.35,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(vertical: 13),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(width: 9),
               AnimatedOpacity(
-                opacity: canSend ? 1 : 0.35,
-                duration: reduceMotion ? Duration.zero : HexaMotion.fast,
+                opacity: canSend ? 1 : 0.42,
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
                 child: IconButton(
                   tooltip: 'Yorumu gönder',
                   onPressed: canSend ? onSubmit : null,
                   style: IconButton.styleFrom(
                     backgroundColor: canSend
-                        ? HexaColors.signal
-                        : HexaColors.white.withAlpha(18),
-                    foregroundColor: HexaColors.white,
+                        ? const Color(0xFF8B5CF6)
+                        : Colors.white.withValues(alpha: 0.08),
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white.withValues(
+                      alpha: 0.44,
+                    ),
+                    minimumSize: const Size(46, 46),
+                    maximumSize: const Size(46, 46),
+                    shape: const CircleBorder(),
                   ),
                   icon: isPosting
                       ? const SizedBox.square(
                           dimension: 17,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: HexaColors.white,
+                            color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.arrow_upward_rounded, size: 19),
+                      : const Icon(Icons.arrow_upward_rounded, size: 20),
                 ),
               ),
             ],

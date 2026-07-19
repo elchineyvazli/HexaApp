@@ -9,6 +9,7 @@ import '../../core/theme/hexa_theme.dart';
 import 'feed_models.dart';
 import 'feed_repository.dart';
 import 'video_item.dart';
+import 'widgets/feed_search_bar.dart';
 import 'widgets/feed_state_views.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
@@ -23,6 +24,8 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
+  static const Color _feedBackground = Color(0xFF050507);
+
   late final PageController _pageController;
 
   int _currentPage = 0;
@@ -134,7 +137,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     final feedState = ref.watch(feedControllerProvider);
-
     final videos = feedState.videos;
 
     _keepPageInRange(videos.length);
@@ -153,8 +155,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           ..showSnackBar(
             SnackBar(
               content: Text(next.message),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xF216161B),
+              elevation: 0,
+              margin: const EdgeInsets.all(HexaSpacing.md),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+              ),
               action: SnackBarAction(
                 label: 'Dene',
+                textColor: const Color(0xFF8B5CF6),
                 onPressed: () {
                   unawaited(
                     ref.read(feedControllerProvider.notifier).loadMore(),
@@ -168,12 +179,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: HexaColors.transparent,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: HexaColors.earth,
+        systemNavigationBarColor: _feedBackground,
         systemNavigationBarIconBrightness: Brightness.light,
-        systemNavigationBarDividerColor: HexaColors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
       ),
       child: PopScope<Object?>(
@@ -184,19 +195,28 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           }
         },
         child: ColoredBox(
-          color: HexaColors.earth,
+          color: _feedBackground,
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
               _buildContent(state: feedState, videos: videos),
+
+              if (videos.isNotEmpty) ...[
+                const _FeedTopScrim(),
+                FeedSearchBar(
+                  dismissToken: _dismissInteractionToken,
+                  onFocusChanged: _setInteractionOpen,
+                ),
+              ],
+
               if (feedState.isLoadingMore &&
                   videos.isNotEmpty &&
                   !_interactionOpen)
-                const Positioned(
+                Positioned(
                   left: 0,
                   right: 0,
-                  bottom: HexaSpacing.sm,
-                  child: IgnorePointer(
+                  bottom: MediaQuery.paddingOf(context).bottom + HexaSpacing.sm,
+                  child: const IgnorePointer(
                     child: Center(child: FeedLoadingMorePill()),
                   ),
                 ),
@@ -253,7 +273,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       },
       itemBuilder: (context, index) {
         final video = videos[index];
-
         final distance = (index - _currentPage).abs();
 
         return RepaintBoundary(
@@ -267,6 +286,36 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FeedTopScrim extends StatelessWidget {
+  const _FeedTopScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 128,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                Color(0xA6050507),
+                Color(0x4D050507),
+                Color(0x00050507),
+              ],
+              stops: <double>[0, 0.48, 1],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

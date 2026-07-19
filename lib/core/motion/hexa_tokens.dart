@@ -1,66 +1,119 @@
 import 'package:flutter/material.dart';
 
-/// Hexa'nın bütün ekranlarında kullanılan sabit tasarım değerleri.
+/// HEXA 2029 tasarım sisteminin ortak sabitleri.
 ///
-/// Ekran dosyalarında doğrudan renk, boşluk, radius veya gölge üretmek yerine
-/// bu sınıflardaki token'lar kullanılmalıdır.
+/// Feature dosyalarında doğrudan renk, boşluk, radius veya gölge
+/// oluşturmak yerine mümkün olduğunca bu token'lar kullanılmalıdır.
 abstract final class HexaColors {
-  // Brand.
-  static const Color hopePink = Color(0xFFFB9BBD);
-  static const Color blush = Color(0xFFF5A8CC);
-  static const Color mauve = Color(0xFFC575B1);
-  static const Color signal = Color(0xFFB15090);
-  static const Color plum = Color(0xFF833C69);
-  static const Color horizon = Color(0xFF601F24);
-  static const Color earth = Color(0xFF2F1713);
-  static const Color mint = Color(0xFFCFE8DF);
+  // ---------------------------------------------------------------------------
+  // HEXA 2029 — Temel marka renkleri
+  // ---------------------------------------------------------------------------
 
-  // Neutrals.
+  static const Color purple = Color(0xFF8B5CF6);
+  static const Color purpleStrong = Color(0xFF7C3AED);
+  static const Color purpleSoft = Color(0xFFA78BFA);
+
+  static const Color cyan = Color(0xFF06B6D4);
+  static const Color cyanSoft = Color(0xFF67E8F9);
+  static const Color cyanMuted = Color(0xFF164E63);
+
+  // ---------------------------------------------------------------------------
+  // Eski ekranları kırmamak için korunan marka adları
+  // ---------------------------------------------------------------------------
+
+  static const Color hopePink = purpleSoft;
+  static const Color blush = Color(0xFFC4B5FD);
+  static const Color mauve = purple;
+  static const Color signal = purple;
+  static const Color plum = purpleStrong;
+  static const Color horizon = Color(0xFF4F46E5);
+  static const Color earth = Color(0xFF050507);
+  static const Color mint = cyanSoft;
+
+  // ---------------------------------------------------------------------------
+  // Temel nötr renkler
+  // ---------------------------------------------------------------------------
+
   static const Color white = Color(0xFFFFFFFF);
+  static const Color black = Color(0xFF000000);
   static const Color transparent = Color(0x00000000);
 
-  // Light surfaces.
-  static const Color background = Color(0xFFFFF7FA);
-  static const Color surface = Color(0xFFFFFCFD);
-  static const Color surfaceMuted = Color(0xFFFCEAF2);
-  static const Color surfaceStrong = Color(0xFFF5D9E7);
-  static const Color surfaceWarm = Color(0xFFFFEEF5);
+  // ---------------------------------------------------------------------------
+  // Açık tema yüzeyleri
+  // ---------------------------------------------------------------------------
 
-  // Dark surfaces.
-  static const Color backgroundDark = Color(0xFF140C11);
-  static const Color surfaceDark = Color(0xFF211219);
-  static const Color surfaceMutedDark = Color(0xFF2C1822);
-  static const Color surfaceStrongDark = Color(0xFF3A2030);
+  static const Color background = Color(0xFFF7F7FA);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceMuted = Color(0xFFF1F1F5);
+  static const Color surfaceStrong = Color(0xFFE7E7EE);
+  static const Color surfaceWarm = Color(0xFFF3F0FF);
 
-  // Content.
-  static const Color ink = earth;
-  static const Color inkMuted = Color(0xFF725766);
-  static const Color inkSoft = Color(0xFFA58A98);
-  static const Color inkOnDark = Color(0xFFFFF8FB);
-  static const Color inkMutedOnDark = Color(0xFFD9C2CE);
-  static const Color inkSoftOnDark = Color(0xFFAA919E);
+  // ---------------------------------------------------------------------------
+  // Koyu tema yüzeyleri
+  // ---------------------------------------------------------------------------
 
-  // Interaction.
-  static const Color signalSoft = Color(0xFFF9DDEB);
-  static const Color signalStrong = plum;
-  static const Color signalGlow = Color(0x55FB9BBD);
-  static const Color signalGlowStrong = Color(0x77B15090);
-  static const Color pressedOverlay = Color(0x14B15090);
-  static const Color focusOverlay = Color(0x22FB9BBD);
+  static const Color backgroundDark = Color(0xFF050507);
+  static const Color surfaceDark = Color(0xFF111116);
+  static const Color surfaceMutedDark = Color(0xFF191920);
+  static const Color surfaceStrongDark = Color(0xFF23232B);
 
-  // Supporting colors.
-  static const Color mintSoft = Color(0xFFEDF8F4);
-  static const Color lavender = Color(0xFFE0CFEA);
-  static const Color lavenderSoft = Color(0xFFF5ECF8);
+  static const Color surfaceElevatedDark = Color(0xFF2B2B34);
+  static const Color surfaceOverlayDark = Color(0xF216161B);
 
-  // Borders and states.
-  static const Color border = Color(0xFFEBD7E1);
-  static const Color borderStrong = Color(0xFFD9BACB);
-  static const Color borderOnDark = Color(0xFF4B2B3A);
-  static const Color success = Color(0xFF287A64);
-  static const Color warning = Color(0xFFA35E18);
-  static const Color error = Color(0xFFA42E42);
-  static const Color scrim = Color(0x992F1713);
+  // ---------------------------------------------------------------------------
+  // Metin ve içerik renkleri
+  // ---------------------------------------------------------------------------
+
+  static const Color ink = Color(0xFF16161B);
+  static const Color inkMuted = Color(0xFF666672);
+  static const Color inkSoft = Color(0xFF9696A3);
+
+  static const Color inkOnDark = Color(0xFFF5F5F7);
+  static const Color inkMutedOnDark = Color(0xFFA0A0AD);
+  static const Color inkSoftOnDark = Color(0xFF6F6F7B);
+
+  // ---------------------------------------------------------------------------
+  // Etkileşim renkleri
+  // ---------------------------------------------------------------------------
+
+  static const Color signalSoft = Color(0xFFEDE5FF);
+  static const Color signalStrong = purpleStrong;
+
+  static const Color signalGlow = Color(0x558B5CF6);
+  static const Color signalGlowStrong = Color(0x778B5CF6);
+
+  static const Color cyanGlow = Color(0x4406B6D4);
+
+  static const Color pressedOverlay = Color(0x1F8B5CF6);
+  static const Color focusOverlay = Color(0x338B5CF6);
+
+  static const Color neutralPressedOverlay = Color(0x14FFFFFF);
+  static const Color neutralHoverOverlay = Color(0x0FFFFFFF);
+
+  // ---------------------------------------------------------------------------
+  // Destekleyici renkler
+  // ---------------------------------------------------------------------------
+
+  static const Color mintSoft = Color(0xFFDFF9FC);
+  static const Color lavender = Color(0xFFC4B5FD);
+  static const Color lavenderSoft = Color(0xFFF1ECFF);
+
+  // ---------------------------------------------------------------------------
+  // Border ve durum renkleri
+  // ---------------------------------------------------------------------------
+
+  static const Color border = Color(0xFFE3E3E9);
+  static const Color borderStrong = Color(0xFFD2D2DA);
+
+  static const Color borderOnDark = Color(0xFF292930);
+  static const Color borderStrongOnDark = Color(0xFF3A3A44);
+
+  static const Color success = Color(0xFF22C55E);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFFF6673);
+
+  static const Color scrim = Color(0xB8050507);
+  static const Color scrimSoft = Color(0x8F050507);
 
   static Color backgroundFor(Brightness brightness) {
     return brightness == Brightness.dark ? backgroundDark : background;
@@ -93,79 +146,103 @@ abstract final class HexaColors {
   static Color borderFor(Brightness brightness) {
     return brightness == Brightness.dark ? borderOnDark : border;
   }
+
+  static Color borderStrongFor(Brightness brightness) {
+    return brightness == Brightness.dark ? borderStrongOnDark : borderStrong;
+  }
 }
 
 abstract final class HexaGradients {
+  /// Kontrollü marka gradienti.
+  ///
+  /// Büyük arka planlarda değil; avatar halkası, aktif durum veya küçük
+  /// marka detaylarında kullanılmalıdır.
   static const LinearGradient hope = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: <Color>[HexaColors.hopePink, HexaColors.blush, HexaColors.mauve],
-    stops: <double>[0, 0.52, 1],
+    colors: <Color>[HexaColors.purpleSoft, HexaColors.purple],
   );
 
+  /// HEXA'nın mor–cyan vurgu gradienti.
   static const LinearGradient signal = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: <Color>[HexaColors.hopePink, HexaColors.signal, HexaColors.plum],
+    colors: <Color>[HexaColors.purple, HexaColors.cyan],
   );
 
-  /// Bütün açık tema sayfalarının temel arka planı.
+  /// Açık tema için nötr sayfa arka planı.
   static const LinearGradient page = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: <Color>[
-      Color(0xFFFFFBFD),
+      Color(0xFFFAFAFC),
       HexaColors.background,
-      Color(0xFFFFF1F7),
+      Color(0xFFF4F2FA),
     ],
-    stops: <double>[0, 0.54, 1],
+    stops: <double>[0, 0.60, 1],
   );
 
+  /// Koyu tema sayfalarında renkli bir neon arka plan yerine kullanılan
+  /// neredeyse düz ve kontrollü geçiş.
   static const LinearGradient pageDark = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: <Color>[
-      Color(0xFF1E1018),
+      Color(0xFF09090D),
       HexaColors.backgroundDark,
-      Color(0xFF0E090C),
+      Color(0xFF050507),
     ],
-    stops: <double>[0, 0.58, 1],
+    stops: <double>[0, 0.44, 1],
   );
 
+  /// Eski kullanımlar için korunan koyu marka geçişi.
   static const LinearGradient horizon = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: <Color>[
-      HexaColors.blush,
-      HexaColors.mauve,
-      HexaColors.horizon,
-      HexaColors.earth,
+      HexaColors.purple,
+      Color(0xFF4F46E5),
+      HexaColors.backgroundDark,
     ],
-    stops: <double>[0, 0.48, 0.78, 1],
+    stops: <double>[0, 0.42, 1],
   );
 
+  /// Yalnızca küçük vurgu ve animasyonlarda kullanılmalıdır.
   static const RadialGradient glow = RadialGradient(
-    colors: <Color>[Color(0x88FB9BBD), Color(0x33C575B1), Color(0x00C575B1)],
+    colors: <Color>[Color(0x668B5CF6), Color(0x2206B6D4), Color(0x0006B6D4)],
   );
 
   static const LinearGradient navIndicator = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: <Color>[HexaColors.hopePink, HexaColors.signal, HexaColors.plum],
-    stops: <double>[0, 0.5, 1],
+    colors: <Color>[HexaColors.purple, HexaColors.cyan],
   );
 
+  /// Açık arayüzlerde kullanılan hafif cam yüzey.
   static const LinearGradient glass = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: <Color>[Color(0xD9FFFCFD), Color(0xBFFCEAF2)],
+    colors: <Color>[Color(0xF2FFFFFF), Color(0xD9FFFFFF)],
   );
 
+  /// Koyu cam paneller için kontrollü yüzey.
+  static const LinearGradient glassDark = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: <Color>[Color(0xF21A1A20), Color(0xE6111116)],
+  );
+
+  /// Video okunabilirliği için nötr siyah katman.
   static const LinearGradient feedScrim = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: <Color>[Color(0x00000000), Color(0x0D000000), Color(0x8A000000)],
-    stops: <double>[0, 0.58, 1],
+    colors: <Color>[
+      Color(0x52050507),
+      Color(0x00050507),
+      Color(0x00050507),
+      Color(0x8F050507),
+    ],
+    stops: <double>[0, 0.18, 0.66, 1],
   );
 
   static LinearGradient pageFor(Brightness brightness) {
@@ -175,6 +252,7 @@ abstract final class HexaGradients {
 
 abstract final class HexaSpacing {
   static const double none = 0;
+
   static const double xxs = 4;
   static const double xs = 8;
   static const double sm = 12;
@@ -191,6 +269,10 @@ abstract final class HexaSpacing {
     horizontal: pageHorizontal,
     vertical: pageVertical,
   );
+
+  static const EdgeInsets pageHorizontalInsets = EdgeInsets.symmetric(
+    horizontal: pageHorizontal,
+  );
 }
 
 abstract final class HexaRadius {
@@ -200,6 +282,8 @@ abstract final class HexaRadius {
   static const double lg = 24;
   static const double xl = 32;
   static const double pill = 999;
+
+  static const BorderRadius borderXs = BorderRadius.all(Radius.circular(xs));
 
   static const BorderRadius borderSm = BorderRadius.all(Radius.circular(sm));
 
@@ -217,28 +301,43 @@ abstract final class HexaRadius {
 abstract final class HexaShadows {
   static const List<BoxShadow> none = <BoxShadow>[];
 
+  /// Nötr kart ve küçük yüzey gölgesi.
   static const List<BoxShadow> soft = <BoxShadow>[
-    BoxShadow(color: Color(0x122F1713), blurRadius: 24, offset: Offset(0, 10)),
+    BoxShadow(color: Color(0x14000000), blurRadius: 24, offset: Offset(0, 10)),
   ];
 
+  /// Aktif marka bileşenleri için kontrollü mor gölge.
   static const List<BoxShadow> signal = <BoxShadow>[
     BoxShadow(
-      color: Color(0x3DB15090),
+      color: Color(0x3D8B5CF6),
       blurRadius: 22,
-      spreadRadius: -3,
-      offset: Offset(0, 9),
+      spreadRadius: -5,
+      offset: Offset(0, 8),
     ),
   ];
 
+  /// Sadece animasyon ve küçük marka vurgularında kullanılmalıdır.
   static const List<BoxShadow> glowSignal = <BoxShadow>[
-    BoxShadow(color: Color(0x33FB9BBD), blurRadius: 28, spreadRadius: 2),
+    BoxShadow(color: Color(0x338B5CF6), blurRadius: 26, spreadRadius: 1),
+    BoxShadow(color: Color(0x1F06B6D4), blurRadius: 34, spreadRadius: -2),
   ];
 
+  /// Modal, action sheet ve yüzen yüzeyler.
   static const List<BoxShadow> floating = <BoxShadow>[
     BoxShadow(
-      color: Color(0x1F2F1713),
+      color: Color(0x66000000),
       blurRadius: 38,
       spreadRadius: -10,
+      offset: Offset(0, 18),
+    ),
+  ];
+
+  /// Koyu arayüzde alt panel ve modal gölgesi.
+  static const List<BoxShadow> floatingDark = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x99000000),
+      blurRadius: 42,
+      spreadRadius: -12,
       offset: Offset(0, 18),
     ),
   ];
@@ -252,79 +351,89 @@ abstract final class HexaTypography {
     final ink = HexaColors.inkFor(brightness);
     final muted = HexaColors.inkMutedFor(brightness);
 
-    final seeded = base.apply(bodyColor: ink, displayColor: ink);
+    final seeded = base.apply(
+      bodyColor: ink,
+      displayColor: ink,
+      decorationColor: ink,
+    );
 
     return seeded.copyWith(
       displayLarge: seeded.displayLarge?.copyWith(
-        fontWeight: FontWeight.w900,
-        letterSpacing: -1,
-        height: 0.98,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1.35,
+        height: 1,
       ),
       displayMedium: seeded.displayMedium?.copyWith(
-        fontWeight: FontWeight.w900,
-        letterSpacing: -0.6,
-        height: 1,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -1,
+        height: 1.02,
       ),
       displaySmall: seeded.displaySmall?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.25,
-        height: 1.04,
+        letterSpacing: -0.72,
+        height: 1.05,
       ),
       headlineLarge: seeded.headlineLarge?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.05,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.65,
         height: 1.08,
       ),
       headlineMedium: seeded.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.1,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.52,
         height: 1.1,
       ),
       headlineSmall: seeded.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.14,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.42,
         height: 1.12,
       ),
       titleLarge: seeded.titleLarge?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.2,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.42,
+        height: 1.18,
       ),
       titleMedium: seeded.titleMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.24,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.28,
+        height: 1.2,
       ),
       titleSmall: seeded.titleSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.18,
+        height: 1.22,
       ),
       bodyLarge: seeded.bodyLarge?.copyWith(
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.05,
-        height: 1.42,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.18,
+        height: 1.45,
       ),
       bodyMedium: seeded.bodyMedium?.copyWith(
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.08,
-        height: 1.4,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.12,
+        height: 1.42,
       ),
       bodySmall: seeded.bodySmall?.copyWith(
         color: muted,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.12,
-        height: 1.36,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.05,
+        height: 1.38,
       ),
       labelLarge: seeded.labelLarge?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.55,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.10,
+        height: 1.2,
       ),
       labelMedium: seeded.labelMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.65,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.05,
+        height: 1.2,
       ),
       labelSmall: seeded.labelSmall?.copyWith(
         color: muted,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.75,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        height: 1.2,
       ),
     );
   }

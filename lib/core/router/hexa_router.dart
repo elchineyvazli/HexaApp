@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hexa/core/theme/hexa_theme.dart';
 import 'package:hexa/features/auth/application/auth_service.dart';
 import 'package:hexa/features/auth/presentation/auth_screen.dart';
 import 'package:hexa/features/auth/presentation/complete_profile_screen.dart';
-import 'package:hexa/features/auth/presentation/widgets/auth_background.dart';
 import 'package:hexa/features/auth/presentation/widgets/hexagon_logo.dart';
 import 'package:hexa/features/chat/chat_screen.dart';
 import 'package:hexa/features/feed/upload_screen.dart';
@@ -23,7 +24,9 @@ abstract final class HexaRoutes {
 }
 
 /// Kullanıcı dokümanını tek bir canlı akıştan takip eder.
-/// Böylece her route değişiminde yeni bir Firestore `.get()` çağrısı yapılmaz.
+///
+/// Böylece her route değişiminde yeni bir Firestore `.get()` çağrısı
+/// yapılmaz.
 final profileCompletionProvider = StreamProvider.autoDispose<bool?>((ref) {
   final user = ref.watch(authStateProvider).asData?.value;
 
@@ -41,16 +44,21 @@ final profileCompletionProvider = StreamProvider.autoDispose<bool?>((ref) {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
+
   final profileCompletionState = ref.watch(profileCompletionProvider);
 
   final router = GoRouter(
     initialLocation: HexaRoutes.splash,
     redirect: (context, state) {
       final path = state.uri.path;
+
       final user = authState.asData?.value;
+
       final isSignedIn = user != null;
       final isAuthLoading = authState.isLoading;
+
       final isProfileLoading = isSignedIn && profileCompletionState.isLoading;
+
       final hasStartupError =
           authState.hasError || (isSignedIn && profileCompletionState.hasError);
 
@@ -86,36 +94,48 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
-    routes: [
+    routes: <RouteBase>[
       GoRoute(
         path: HexaRoutes.splash,
         name: 'splash',
-        builder: (context, state) => const _StartupScreen(),
+        builder: (context, state) {
+          return const _StartupScreen();
+        },
       ),
       GoRoute(
         path: HexaRoutes.startupError,
         name: 'startup-error',
-        builder: (context, state) => const _StartupErrorScreen(),
+        builder: (context, state) {
+          return const _StartupErrorScreen();
+        },
       ),
       GoRoute(
         path: HexaRoutes.auth,
         name: 'auth',
-        builder: (context, state) => const AuthScreen(),
+        builder: (context, state) {
+          return const AuthScreen();
+        },
       ),
       GoRoute(
         path: HexaRoutes.completeProfile,
         name: 'complete-profile',
-        builder: (context, state) => const CompleteProfileScreen(),
+        builder: (context, state) {
+          return const CompleteProfileScreen();
+        },
       ),
       GoRoute(
         path: HexaRoutes.feed,
         name: 'feed',
-        builder: (context, state) => const MainScaffold(),
+        builder: (context, state) {
+          return const MainScaffold();
+        },
       ),
       GoRoute(
         path: HexaRoutes.upload,
         name: 'upload',
-        builder: (context, state) => const UploadScreen(),
+        builder: (context, state) {
+          return const UploadScreen();
+        },
       ),
       GoRoute(
         path: '/profile/:userId',
@@ -129,14 +149,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'chat',
         builder: (context, state) {
           final chatId = state.pathParameters['chatId'] ?? 'unknown';
+
           return ChatScreen(chatId: chatId);
         },
       ),
     ],
-    errorBuilder: (context, state) => _RouteErrorScreen(error: state.error),
+    errorBuilder: (context, state) {
+      return _RouteErrorScreen(error: state.error);
+    },
   );
 
   ref.onDispose(router.dispose);
+
   return router;
 });
 
@@ -145,70 +169,105 @@ class _StartupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          const AuthBackground(),
-          SafeArea(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 750),
-                    curve: HexaMotion.elastic, // 🆕 Hafif sıçramalı logo
-                    tween: Tween(begin: 0.8, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.scale(scale: value, child: child);
-                    },
-                    child: const HexagonLogo(size: 88),
-                  ),
-                  const SizedBox(height: HexaSpacing.md),
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOut,
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Opacity(opacity: value, child: child);
-                    },
-                    child: Text(
-                      'HEXA',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 6,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 700),
-                    curve: Curves.easeOut,
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Opacity(opacity: value, child: child);
-                    },
-                    child: const Text(
-                      'DEĞERLİ İÇERİK, GERÇEK DESTEK',
-                      style: TextStyle(
-                        color: HexaColors.inkMuted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: HexaSpacing.lg),
-                  const SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(strokeWidth: 2.4),
-                  ),
+    return Theme(
+      data: HexaTheme.darkTheme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: HexaColors.backgroundDark,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: Scaffold(
+          backgroundColor: HexaColors.backgroundDark,
+          body: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Color(0xFF0A0A0F),
+                  HexaColors.backgroundDark,
+                  HexaColors.backgroundDark,
                 ],
+                stops: <double>[0, 0.42, 1],
+              ),
+            ),
+            child: SafeArea(
+              child: Center(
+                child: Semantics(
+                  label: 'HEXA başlatılıyor',
+                  liveRegion: true,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 88,
+                        height: 88,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: HexaColors.surfaceDark,
+                          borderRadius: BorderRadius.circular(29),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                          boxShadow: const <BoxShadow>[
+                            BoxShadow(
+                              color: Color(0x248B5CF6),
+                              blurRadius: 34,
+                              spreadRadius: -8,
+                            ),
+                            BoxShadow(
+                              color: Color(0x1406B6D4),
+                              blurRadius: 42,
+                              spreadRadius: -12,
+                            ),
+                          ],
+                        ),
+                        child: HexagonLogo(size: 57, showShadow: false),
+                      ),
+                      const SizedBox(height: 25),
+                      const Text(
+                        'HEXA',
+                        style: TextStyle(
+                          color: Color(0xF2FFFFFF),
+                          fontSize: 22,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 5.2,
+                        ),
+                      ),
+                      const SizedBox(height: 11),
+                      const Text(
+                        'Değerli içerik, gerçek destek',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0x66FFFFFF),
+                          fontSize: 11.5,
+                          height: 1.2,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.15,
+                        ),
+                      ),
+                      const SizedBox(height: 29),
+                      const SizedBox.square(
+                        dimension: 25,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: HexaColors.purple,
+                          backgroundColor: Color(0x1AFFFFFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -219,166 +278,297 @@ class _StartupErrorScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          const AuthBackground(),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(HexaSpacing.lg),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: TweenAnimationBuilder<double>(
-                    duration: HexaMotion.slow,
-                    curve: HexaMotion.emphasized,
-                    tween: Tween(begin: 0.92, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.scale(scale: value, child: child);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(HexaSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: const Color(0xF7FFFFFF),
-                        borderRadius: BorderRadius.circular(HexaRadius.lg),
-                        border: Border.all(color: HexaColors.border),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const HexagonLogo(size: 72),
-                          const SizedBox(height: HexaSpacing.lg),
-                          Text(
-                            'Bağlantıyı tamamlayamadık',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w900),
+    return Theme(
+      data: HexaTheme.darkTheme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: HexaColors.backgroundDark,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: Scaffold(
+          backgroundColor: HexaColors.backgroundDark,
+          body: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Color(0xFF0A0A0F),
+                  HexaColors.backgroundDark,
+                  HexaColors.backgroundDark,
+                ],
+                stops: <double>[0, 0.38, 1],
+              ),
+            ),
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 36,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 380),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const _ConnectionErrorMark(),
+                        const SizedBox(height: 27),
+                        const Text(
+                          'Bağlantı kurulamadı',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: HexaColors.inkOnDark,
+                            fontSize: 23,
+                            height: 1.12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.58,
                           ),
-                          const SizedBox(height: HexaSpacing.sm),
-                          Text(
-                            'Oturum veya profil bilgisi alınamadı. İnternet bağlantını kontrol edip yeniden dene.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: HexaColors.inkMuted),
+                        ),
+                        const SizedBox(height: 11),
+                        const Text(
+                          'Oturum veya profil bilgileri alınamadı. Bağlantını kontrol edip yeniden dene.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0x80FFFFFF),
+                            fontSize: 13.5,
+                            height: 1.5,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: -0.10,
                           ),
-                          const SizedBox(height: HexaSpacing.lg),
-                          FilledButton.icon(
+                        ),
+                        const SizedBox(height: 25),
+                        SizedBox(
+                          height: 48,
+                          child: FilledButton.icon(
                             onPressed: () {
                               ref.invalidate(authStateProvider);
+
                               ref.invalidate(profileCompletionProvider);
+
                               context.go(HexaRoutes.splash);
                             },
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Tekrar dene'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: HexaColors.purple,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
+                              shape: const StadiumBorder(),
+                            ),
+                            icon: Icon(Icons.refresh_rounded, size: 19),
+                            label: const Text(
+                              'Tekrar dene',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                height: 1,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.10,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _RouteErrorScreen extends StatefulWidget {
+class _ConnectionErrorMark extends StatelessWidget {
+  const _ConnectionErrorMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      image: true,
+      label: 'Bağlantı hatası',
+      child: Container(
+        width: 76,
+        height: 76,
+        padding: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          gradient: HexaGradients.signal,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x248B5CF6),
+              blurRadius: 30,
+              spreadRadius: -8,
+            ),
+          ],
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: HexaColors.surfaceDark,
+            borderRadius: BorderRadius.circular(24.5),
+          ),
+          child: Icon(
+            Icons.cloud_off_outlined,
+            color: Colors.white.withOpacity(0.82),
+            size: 30,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteErrorScreen extends StatelessWidget {
   const _RouteErrorScreen({this.error});
 
   final Object? error;
 
   @override
-  State<_RouteErrorScreen> createState() => _RouteErrorScreenState();
+  Widget build(BuildContext context) {
+    return Theme(
+      data: HexaTheme.darkTheme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: HexaColors.backgroundDark,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: Scaffold(
+          backgroundColor: HexaColors.backgroundDark,
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 36,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 64,
+                        height: 64,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.055),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.07),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.explore_off_outlined,
+                          color: Colors.white.withOpacity(0.46),
+                          size: 29,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'Sayfa bulunamadı',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: HexaColors.inkOnDark,
+                          fontSize: 22,
+                          height: 1.12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.52,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      const Text(
+                        'Aradığın sayfa taşınmış veya artık kullanılamıyor olabilir.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0x70FFFFFF),
+                          fontSize: 13,
+                          height: 1.46,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: -0.08,
+                        ),
+                      ),
+                      if (kDebugMode && error != null) ...<Widget>[
+                        const SizedBox(height: 20),
+                        _RouteDebugMessage(message: error.toString()),
+                      ],
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            context.go(HexaRoutes.feed);
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: HexaColors.purple,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            shape: const StadiumBorder(),
+                          ),
+                          icon: Icon(Icons.home_rounded, size: 19),
+                          label: const Text(
+                            'Ana sayfaya dön',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              height: 1,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _RouteErrorScreenState extends State<_RouteErrorScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _shakeController;
-  late final Animation<Offset> _shakeAnimation;
+class _RouteDebugMessage extends StatelessWidget {
+  const _RouteDebugMessage({required this.message});
 
-  @override
-  void initState() {
-    super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _shakeAnimation = TweenSequence<Offset>([
-      TweenSequenceItem(
-        tween: Tween(begin: Offset.zero, end: const Offset(4, 0)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: const Offset(4, 0), end: const Offset(-4, 0)),
-        weight: 2,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: const Offset(-4, 0), end: const Offset(2, 0)),
-        weight: 2,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: const Offset(2, 0), end: Offset.zero),
-        weight: 1,
-      ),
-    ]).animate(_shakeController);
-
-    // Ekran açılır açılmaz hafifçe sallanır
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _shakeController.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _shakeController.dispose();
-    super.dispose();
-  }
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sayfa bulunamadı')),
-      body: Center(
-        child: SlideTransition(
-          position: _shakeAnimation,
-          child: Padding(
-            padding: const EdgeInsets.all(HexaSpacing.lg),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.explore_off_rounded,
-                    size: 64,
-                    color: HexaColors.signal,
-                  ),
-                  const SizedBox(height: HexaSpacing.md),
-                  Text(
-                    'Aradığın sayfaya ulaşamadık.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  if (widget.error != null) ...[
-                    const SizedBox(height: HexaSpacing.sm),
-                    Text(
-                      widget.error.toString(),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                  const SizedBox(height: HexaSpacing.lg),
-                  FilledButton.icon(
-                    onPressed: () => context.go(HexaRoutes.feed),
-                    icon: const Icon(Icons.home_rounded),
-                    label: const Text('Ana sayfaya dön'),
-                  ),
-                ],
-              ),
-            ),
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 130),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: HexaColors.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: SingleChildScrollView(
+        child: SelectableText(
+          message,
+          textAlign: TextAlign.left,
+          style: const TextStyle(
+            color: Color(0x70FFFFFF),
+            fontFamily: 'monospace',
+            fontSize: 10.5,
+            height: 1.42,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),

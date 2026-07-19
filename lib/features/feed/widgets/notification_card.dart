@@ -17,28 +17,21 @@ class NotificationCard extends StatelessWidget {
       label: '${item.senderName}: ${item.message}',
       child: AnimatedContainer(
         duration: HexaMotion.fast,
-        curve: HexaMotion.enter,
-        padding: const EdgeInsets.all(HexaSpacing.md),
-        decoration: BoxDecoration(
-          color: item.isRead ? HexaColors.surface : visual.background,
-          borderRadius: BorderRadius.circular(HexaRadius.lg),
-          border: Border.all(
-            color: item.isRead ? HexaColors.border : visual.border,
-            width: item.isRead ? 1 : 1.3,
-          ),
-          boxShadow: item.isRead ? const [] : HexaShadows.soft,
-        ),
+        curve: Curves.easeOutCubic,
+        color: item.isRead
+            ? Colors.transparent
+            : HexaColors.purple.withOpacity(0.055),
+        padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          children: <Widget>[
             _NotificationAvatar(
               avatarUrl: item.senderAvatar,
               senderName: item.senderName,
               icon: visual.icon,
-              color: visual.color,
-              background: visual.iconBackground,
+              accentColor: visual.color,
             ),
-            const SizedBox(width: HexaSpacing.sm),
+            const SizedBox(width: 12),
             Expanded(
               child: _NotificationContent(
                 item: item,
@@ -46,18 +39,11 @@ class NotificationCard extends StatelessWidget {
                 typeLabel: visual.label,
               ),
             ),
-            if (!item.isRead) ...[
-              const SizedBox(width: HexaSpacing.xs),
-              Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: visual.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+            if (!item.isRead) ...<Widget>[
+              const SizedBox(width: 10),
+              const Padding(
+                padding: EdgeInsets.only(top: 7),
+                child: _UnreadIndicator(),
               ),
             ],
           ],
@@ -72,55 +58,67 @@ class _NotificationAvatar extends StatelessWidget {
     required this.avatarUrl,
     required this.senderName,
     required this.icon,
-    required this.color,
-    required this.background,
+    required this.accentColor,
   });
 
   final String avatarUrl;
   final String senderName;
   final IconData icon;
-  final Color color;
-  final Color background;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
+    final normalizedAvatarUrl = avatarUrl.trim();
+
     return Stack(
       clipBehavior: Clip.none,
-      children: [
+      children: <Widget>[
         Container(
-          width: 52,
-          height: 52,
-          padding: const EdgeInsets.all(2),
+          width: 46,
+          height: 46,
+          padding: const EdgeInsets.all(1),
           decoration: BoxDecoration(
-            color: HexaColors.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: HexaColors.border),
+            border: Border.all(color: Colors.white.withOpacity(0.10)),
           ),
           child: ClipOval(
-            child: avatarUrl.trim().isEmpty
-                ? _AvatarFallback(senderName: senderName)
-                : Image.network(
-                    avatarUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _AvatarFallback(senderName: senderName);
-                    },
-                  ),
+            child: ColoredBox(
+              color: HexaColors.surfaceMutedDark,
+              child: normalizedAvatarUrl.isEmpty
+                  ? _AvatarFallback(senderName: senderName)
+                  : Image.network(
+                      normalizedAvatarUrl,
+                      width: 46,
+                      height: 46,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _AvatarFallback(senderName: senderName);
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) {
+                          return child;
+                        }
+
+                        return _AvatarFallback(senderName: senderName);
+                      },
+                    ),
+            ),
           ),
         ),
         Positioned(
           right: -3,
-          bottom: -3,
+          bottom: -2,
           child: Container(
-            width: 23,
-            height: 23,
-            decoration: BoxDecoration(
-              color: background,
-              shape: BoxShape.circle,
-              border: Border.all(color: HexaColors.surface, width: 2),
-            ),
+            width: 19,
+            height: 19,
             alignment: Alignment.center,
-            child: Icon(icon, color: color, size: 13),
+            decoration: BoxDecoration(
+              color: HexaColors.surfaceStrongDark,
+              shape: BoxShape.circle,
+              border: Border.all(color: HexaColors.backgroundDark, width: 2),
+            ),
+            child: Icon(icon, color: accentColor, size: 11),
           ),
         ),
       ],
@@ -135,22 +133,21 @@ class _AvatarFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanName = senderName.trim();
+    final normalizedName = senderName.trim();
 
-    final letter = cleanName.isEmpty
+    final letter = normalizedName.isEmpty
         ? 'H'
-        : cleanName.substring(0, 1).toUpperCase();
+        : normalizedName.substring(0, 1).toUpperCase();
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: HexaColors.surfaceMuted),
-      child: Center(
-        child: Text(
-          letter,
-          style: const TextStyle(
-            color: HexaColors.signalStrong,
-            fontSize: 19,
-            fontWeight: FontWeight.w900,
-          ),
+    return Center(
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Color(0xDFFFFFFF),
+          fontSize: 17,
+          height: 1,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.25,
         ),
       ),
     );
@@ -170,115 +167,131 @@ class _NotificationContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseStyle = Theme.of(
-      context,
-    ).textTheme.bodyMedium?.copyWith(color: HexaColors.inkMuted, height: 1.4);
+    final normalizedName = item.senderName.trim();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text.rich(
-          TextSpan(
-            style: baseStyle,
-            children: [
-              TextSpan(
-                text: item.senderName.trim().isEmpty
-                    ? 'Hexa kullanıcısı '
-                    : '${item.senderName.trim()} ',
-                style: const TextStyle(
-                  color: HexaColors.ink,
-                  fontWeight: FontWeight.w800,
+    final senderName = normalizedName.isEmpty
+        ? 'Hexa kullanıcısı'
+        : normalizedName;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(
+                color: Color(0xCFFFFFFF),
+                fontSize: 14,
+                height: 1.38,
+                fontWeight: FontWeight.w400,
+                letterSpacing: -0.14,
+              ),
+              children: <InlineSpan>[
+                TextSpan(
+                  text: '$senderName ',
+                  style: const TextStyle(
+                    color: Color(0xF2FFFFFF),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              TextSpan(text: item.message),
-            ],
+                TextSpan(text: item.message),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: HexaSpacing.xs),
-        Wrap(
-          spacing: HexaSpacing.xs,
-          runSpacing: HexaSpacing.xxs,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(HexaRadius.pill),
-              ),
-              child: Text(
+          const SizedBox(height: 7),
+          Row(
+            children: <Widget>[
+              Text(
                 typeLabel,
                 style: TextStyle(
-                  color: accentColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  color: accentColor.withOpacity(0.88),
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.04,
                 ),
               ),
-            ),
-            Text(
-              _formatNotificationTimestamp(item.createdAt),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: HexaColors.inkSoft,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+              Container(
+                width: 3,
+                height: 3,
+                margin: const EdgeInsets.symmetric(horizontal: 7),
+                decoration: const BoxDecoration(
+                  color: Color(0x4DFFFFFF),
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+              Flexible(
+                child: Text(
+                  _formatNotificationTimestamp(item.createdAt),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0x66FFFFFF),
+                    fontSize: 11,
+                    height: 1,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.04,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-typedef _NotificationVisual = ({
-  Color color,
-  Color background,
-  Color iconBackground,
-  Color border,
-  IconData icon,
-  String label,
-});
+class _UnreadIndicator extends StatelessWidget {
+  const _UnreadIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Okunmamış bildirim',
+      child: Container(
+        width: 7,
+        height: 7,
+        decoration: const BoxDecoration(
+          color: HexaColors.purple,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+typedef _NotificationVisual = ({Color color, IconData icon, String label});
 
 _NotificationVisual _notificationVisual(NotificationType type) {
   switch (type) {
     case NotificationType.like:
       return (
-        color: HexaColors.signalStrong,
-        background: HexaColors.surfaceWarm,
-        iconBackground: HexaColors.signalSoft,
-        border: HexaColors.borderStrong,
+        color: HexaColors.purple,
         icon: Icons.favorite_rounded,
-        label: 'Signal',
+        label: 'Beğeni',
       );
 
     case NotificationType.comment:
       return (
-        color: HexaColors.mauve,
-        background: HexaColors.lavenderSoft,
-        iconBackground: HexaColors.lavender,
-        border: HexaColors.borderStrong,
-        icon: Icons.chat_bubble_rounded,
+        color: HexaColors.cyan,
+        icon: Icons.mode_comment_rounded,
         label: 'Yorum',
       );
 
     case NotificationType.follow:
       return (
-        color: HexaColors.success,
-        background: HexaColors.mintSoft,
-        iconBackground: HexaColors.mint,
-        border: HexaColors.mint,
+        color: HexaColors.purpleSoft,
         icon: Icons.person_add_rounded,
         label: 'Takip',
       );
 
     case NotificationType.system:
       return (
-        color: HexaColors.warning,
-        background: const Color(0xFFFFF7EE),
-        iconBackground: const Color(0xFFFFE5C7),
-        border: const Color(0xFFF2D0A8),
-        icon: Icons.auto_awesome_rounded,
-        label: 'Hexa',
+        color: HexaColors.inkMutedOnDark,
+        icon: Icons.hexagon_outlined,
+        label: 'HEXA',
       );
   }
 }

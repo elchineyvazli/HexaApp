@@ -18,33 +18,55 @@ class VideoPlaybackIndicator extends StatelessWidget {
     return IgnorePointer(
       child: Center(
         child: AnimatedSwitcher(
-          duration: reduceMotion ? Duration.zero : HexaMotion.normal,
-          reverseDuration: reduceMotion ? Duration.zero : HexaMotion.fast,
-          switchInCurve: HexaMotion.elastic,
-          switchOutCurve: HexaMotion.exit,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          reverseDuration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) {
             return FadeTransition(
               opacity: animation,
               child: ScaleTransition(
-                scale: Tween<double>(begin: 0.82, end: 1).animate(animation),
+                scale: Tween<double>(begin: 0.86, end: 1).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
                 child: child,
               ),
             );
           },
           child: icon == null
-              ? const SizedBox.shrink(key: ValueKey<String>('empty'))
-              : ClipPath(
+              ? const SizedBox.shrink(
+                  key: ValueKey<String>('empty-playback-indicator'),
+                )
+              : Container(
                   key: ValueKey<IconData>(icon!),
-                  clipper: const _HexagonClipper(),
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: HexaColors.earth.withAlpha(185),
-                      boxShadow: HexaShadows.signal,
+                  width: 66,
+                  height: 66,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0x99050507),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
                     ),
-                    child: Icon(icon, color: HexaColors.white, size: 32),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(
+                        color: Color(0x52000000),
+                        blurRadius: 22,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    color: Colors.white.withValues(alpha: 0.94),
+                    size: 30,
                   ),
                 ),
         ),
@@ -70,42 +92,29 @@ class VideoCaptionOverlay extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final theme = Theme.of(context);
-
     return Positioned(
-      left: HexaSpacing.md,
-      right: 86,
-      bottom: 54,
+      left: 16,
+      right: 82,
+      bottom: MediaQuery.paddingOf(context).bottom + 18,
       child: IgnorePointer(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              width: 2,
-              height: 34,
-              margin: const EdgeInsets.only(top: 2),
-              decoration: const BoxDecoration(
-                gradient: HexaGradients.navIndicator,
-                borderRadius: HexaRadius.borderPill,
+        child: Text(
+          caption,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xF2FFFFFF),
+            fontSize: 14,
+            height: 1.38,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.14,
+            shadows: <Shadow>[
+              Shadow(
+                color: Color(0xE6000000),
+                blurRadius: 12,
+                offset: Offset(0, 2),
               ),
-            ),
-            const SizedBox(width: HexaSpacing.sm),
-            Expanded(
-              child: Text(
-                caption,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: HexaColors.white,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                  shadows: const <Shadow>[
-                    Shadow(color: HexaColors.earth, blurRadius: 10),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -114,8 +123,8 @@ class VideoCaptionOverlay extends StatelessWidget {
 
 /// Eski VideoBottomControls kullanımları için korunan minimal sürüm.
 ///
-/// Feed'in yeni ana görünümünde bu kontrol yalnızca kullanıcı etkileşiminden
-/// sonra kısa süreli gösterilmelidir.
+/// Feed'in ana görünümünde yalnızca kullanıcı etkileşiminden sonra kısa
+/// süreli gösterilmelidir.
 class VideoBottomControls extends StatelessWidget {
   const VideoBottomControls({
     required this.controller,
@@ -131,9 +140,9 @@ class VideoBottomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: HexaSpacing.sm,
-      right: HexaSpacing.sm,
-      bottom: HexaSpacing.xs,
+      left: 12,
+      right: 12,
+      bottom: 5,
       child: SafeArea(
         top: false,
         left: false,
@@ -141,14 +150,14 @@ class VideoBottomControls extends StatelessWidget {
         child: Row(
           children: <Widget>[
             _OverlayMuteButton(isMuted: isMuted, onTap: onToggleMute),
-            const SizedBox(width: HexaSpacing.sm),
+            const SizedBox(width: 10),
             Expanded(
               child: VideoProgressIndicator(
                 controller,
                 allowScrubbing: true,
-                padding: const EdgeInsets.symmetric(vertical: HexaSpacing.sm),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 colors: const VideoProgressColors(
-                  playedColor: HexaColors.hopePink,
+                  playedColor: Color(0xFF8B5CF6),
                   bufferedColor: Color(0x52FFFFFF),
                   backgroundColor: Color(0x24FFFFFF),
                 ),
@@ -176,13 +185,15 @@ class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
+  bool _reduceMotion = false;
+
   @override
   void initState() {
     super.initState();
 
     _controller = AnimationController(
       vsync: this,
-      duration: HexaMotion.breathe * 3,
+      duration: const Duration(milliseconds: 900),
     );
   }
 
@@ -190,11 +201,20 @@ class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    if (HexaMotion.reduceMotionOf(context)) {
+    final nextReduceMotion = HexaMotion.reduceMotionOf(context);
+
+    if (_reduceMotion == nextReduceMotion &&
+        (_controller.isAnimating || nextReduceMotion)) {
+      return;
+    }
+
+    _reduceMotion = nextReduceMotion;
+
+    if (_reduceMotion) {
       _controller
         ..stop()
-        ..value = 0.12;
-    } else if (!_controller.isAnimating) {
+        ..value = 0.18;
+    } else {
       _controller.repeat();
     }
   }
@@ -202,12 +222,13 @@ class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
   @override
   void dispose() {
     _controller.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.compact ? 44.0 : 62.0;
+    final size = widget.compact ? 28.0 : 42.0;
 
     return IgnorePointer(
       child: AnimatedBuilder(
@@ -215,9 +236,9 @@ class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
         builder: (context, child) {
           return CustomPaint(
             size: Size.square(size),
-            painter: _LoadingHexPainter(
+            painter: _LoadingArcPainter(
               phase: _controller.value,
-              color: HexaColors.hopePink,
+              strokeWidth: widget.compact ? 2 : 2.4,
             ),
           );
         },
@@ -226,7 +247,7 @@ class _VideoLoadingIndicatorState extends State<VideoLoadingIndicator>
   }
 }
 
-class VideoErrorView extends StatefulWidget {
+class VideoErrorView extends StatelessWidget {
   const VideoErrorView({
     required this.message,
     required this.onRetry,
@@ -237,77 +258,70 @@ class VideoErrorView extends StatefulWidget {
   final VoidCallback onRetry;
 
   @override
-  State<VideoErrorView> createState() {
-    return _VideoErrorViewState();
-  }
-}
-
-class _VideoErrorViewState extends State<VideoErrorView> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    return Center(
-      child: Semantics(
-        button: true,
-        label: 'Videoyu tekrar yükle',
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) {
-            setState(() => _pressed = true);
-          },
-          onTapCancel: () {
-            setState(() => _pressed = false);
-          },
-          onTapUp: (_) {
-            setState(() => _pressed = false);
-            widget.onRetry();
-          },
-          child: AnimatedScale(
-            scale: _pressed ? HexaMotion.pressScale : 1,
-            duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-            curve: HexaMotion.elastic,
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 280),
-              margin: const EdgeInsets.symmetric(horizontal: HexaSpacing.xl),
-              padding: const EdgeInsets.all(HexaSpacing.lg),
-              decoration: BoxDecoration(
-                color: HexaColors.earth.withAlpha(205),
-                borderRadius: HexaRadius.borderLg,
-                border: Border.all(color: HexaColors.white.withAlpha(34)),
+    return ColoredBox(
+      color: const Color(0xB8050507),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 38),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.videocam_off_outlined,
+                color: Colors.white.withValues(alpha: 0.62),
+                size: 31,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const Icon(
-                    Icons.refresh_rounded,
-                    color: HexaColors.hopePink,
-                    size: 28,
+              const SizedBox(height: 14),
+              Text(
+                message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xDFFFFFFF),
+                  fontSize: 14,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.12,
+                ),
+              ),
+              const SizedBox(height: 17),
+              Semantics(
+                button: true,
+                label: 'Videoyu tekrar yükle',
+                child: OutlinedButton.icon(
+                  onPressed: onRetry,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: 0.07),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 17,
+                      vertical: 11,
+                    ),
+                    shape: const StadiumBorder(),
+                    animationDuration: reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 160),
                   ),
-                  const SizedBox(height: HexaSpacing.sm),
-                  Text(
-                    widget.message,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: HexaColors.white,
-                      fontWeight: FontWeight.w700,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text(
+                    'Tekrar dene',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.08,
                     ),
                   ),
-                  const SizedBox(height: HexaSpacing.xs),
-                  Text(
-                    'Tekrar denemek için dokun',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: HexaColors.white.withAlpha(155),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -322,7 +336,19 @@ class VideoReadabilityGradient extends StatelessWidget {
   Widget build(BuildContext context) {
     return const IgnorePointer(
       child: DecoratedBox(
-        decoration: BoxDecoration(gradient: HexaGradients.feedScrim),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color(0x52050507),
+              Color(0x00050507),
+              Color(0x00050507),
+              Color(0x8F050507),
+            ],
+            stops: <double>[0, 0.18, 0.66, 1],
+          ),
+        ),
       ),
     );
   }
@@ -401,38 +427,57 @@ class _OverlayMuteButton extends StatefulWidget {
 class _OverlayMuteButtonState extends State<_OverlayMuteButton> {
   bool _pressed = false;
 
+  void _setPressed(bool value) {
+    if (_pressed == value) {
+      return;
+    }
+
+    setState(() {
+      _pressed = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduceMotion = HexaMotion.reduceMotionOf(context);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
-        setState(() => _pressed = true);
-      },
-      onTapCancel: () {
-        setState(() => _pressed = false);
-      },
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      child: AnimatedScale(
-        scale: _pressed ? HexaMotion.pressScale : 1,
-        duration: reduceMotion ? Duration.zero : HexaMotion.fast,
-        curve: HexaMotion.elastic,
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: HexaColors.earth.withAlpha(135),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            widget.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-            color: HexaColors.white,
-            size: 16,
+    return Semantics(
+      button: true,
+      label: widget.isMuted ? 'Videonun sesini aç' : 'Videonun sesini kapat',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _setPressed(true);
+        },
+        onTapCancel: () {
+          _setPressed(false);
+        },
+        onTapUp: (_) {
+          _setPressed(false);
+          widget.onTap();
+        },
+        child: AnimatedScale(
+          scale: _pressed ? 0.88 : 1,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0x8F050507),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            ),
+            child: Icon(
+              widget.isMuted
+                  ? Icons.volume_off_rounded
+                  : Icons.volume_up_rounded,
+              color: Colors.white.withValues(alpha: 0.86),
+              size: 16,
+            ),
           ),
         ),
       ),
@@ -440,104 +485,50 @@ class _OverlayMuteButtonState extends State<_OverlayMuteButton> {
   }
 }
 
-class _HexagonClipper extends CustomClipper<Path> {
-  const _HexagonClipper();
-
-  @override
-  Path getClip(Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2;
-    final path = Path();
-
-    for (var index = 0; index < 6; index++) {
-      final angle = -math.pi / 2 + index * math.pi / 3;
-
-      final point = Offset(
-        center.dx + math.cos(angle) * radius,
-        center.dy + math.sin(angle) * radius,
-      );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    return path..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _HexagonClipper oldClipper) {
-    return false;
-  }
-}
-
-class _LoadingHexPainter extends CustomPainter {
-  const _LoadingHexPainter({required this.phase, required this.color});
+class _LoadingArcPainter extends CustomPainter {
+  const _LoadingArcPainter({required this.phase, required this.strokeWidth});
 
   final double phase;
-  final Color color;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.shortestSide * 0.35;
 
-    final path = Path();
+    final radius = (size.shortestSide - strokeWidth) / 2;
 
-    for (var index = 0; index < 6; index++) {
-      final angle = -math.pi / 2 + index * math.pi / 3;
+    final bounds = Rect.fromCircle(center: center, radius: radius);
 
-      final point = Offset(
-        center.dx + math.cos(angle) * radius,
-        center.dy + math.sin(angle) * radius,
-      );
-
-      if (index == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    path.close();
-
-    canvas.drawPath(
-      path,
+    canvas.drawCircle(
+      center,
+      radius,
       Paint()
-        ..color = HexaColors.white.withAlpha(28)
+        ..color = Colors.white.withValues(alpha: 0.10)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = strokeWidth,
     );
 
-    final metrics = path.computeMetrics().toList();
+    final startAngle = -math.pi / 2 + math.pi * 2 * phase;
 
-    if (metrics.isEmpty) {
-      return;
-    }
-
-    final metric = metrics.first;
-    final segmentLength = metric.length * 0.28;
-    final start = metric.length * phase;
-    final end = start + segmentLength;
+    const sweepAngle = math.pi * 1.35;
 
     final activePaint = Paint()
-      ..color = color
+      ..shader = const SweepGradient(
+        colors: <Color>[
+          Color(0xFF8B5CF6),
+          Color(0xFF06B6D4),
+          Color(0xFF8B5CF6),
+        ],
+      ).createShader(bounds)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
-    if (end <= metric.length) {
-      canvas.drawPath(metric.extractPath(start, end), activePaint);
-    } else {
-      canvas.drawPath(metric.extractPath(start, metric.length), activePaint);
-      canvas.drawPath(metric.extractPath(0, end - metric.length), activePaint);
-    }
+    canvas.drawArc(bounds, startAngle, sweepAngle, false, activePaint);
   }
 
   @override
-  bool shouldRepaint(covariant _LoadingHexPainter oldDelegate) {
-    return oldDelegate.phase != phase || oldDelegate.color != color;
+  bool shouldRepaint(covariant _LoadingArcPainter oldDelegate) {
+    return oldDelegate.phase != phase || oldDelegate.strokeWidth != strokeWidth;
   }
 }

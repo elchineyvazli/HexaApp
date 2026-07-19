@@ -7,77 +7,27 @@ class NotificationsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        HexaSpacing.md,
-        HexaSpacing.md,
-        HexaSpacing.md,
-        HexaSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: HexaColors.signalSoft,
-              borderRadius: BorderRadius.circular(HexaRadius.md),
-              border: Border.all(color: HexaColors.border),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.notifications_rounded,
-              color: HexaColors.signalStrong,
-              size: 25,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Bildirimler',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: HexaColors.inkOnDark,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.75,
+              height: 1.05,
             ),
           ),
-          const SizedBox(width: HexaSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bildirimler',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Topluluğundaki yeni hareketler',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: HexaColors.inkMuted),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: HexaColors.lavenderSoft,
-              borderRadius: BorderRadius.circular(HexaRadius.pill),
-              border: Border.all(color: HexaColors.border),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.favorite_rounded,
-                  size: 14,
-                  color: HexaColors.signal,
-                ),
-                SizedBox(width: 5),
-                Text(
-                  'HEXA',
-                  style: TextStyle(
-                    color: HexaColors.signalStrong,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            'Hesabındaki son hareketler',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: HexaColors.inkMutedOnDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              letterSpacing: -0.10,
             ),
           ),
         ],
@@ -91,7 +41,36 @@ class NotificationsLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return Center(
+      child: Semantics(
+        label: 'Bildirimler yükleniyor',
+        liveRegion: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const SizedBox.square(
+              dimension: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.1,
+                color: HexaColors.purple,
+                backgroundColor: Color(0x1AFFFFFF),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Bildirimler yükleniyor',
+              style: TextStyle(
+                color: Color(0x70FFFFFF),
+                fontSize: 13,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.08,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -102,39 +81,53 @@ class NotificationsEmptyView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(HexaSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 94,
-              height: 94,
-              decoration: const BoxDecoration(
-                color: HexaColors.signalSoft,
-                shape: BoxShape.circle,
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.055),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.07)),
+                ),
+                child: Icon(
+                  Icons.notifications_none_rounded,
+                  size: 27,
+                  color: Colors.white.withOpacity(0.56),
+                ),
               ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                size: 43,
-                color: HexaColors.signalStrong,
+              const SizedBox(height: 19),
+              const Text(
+                'Henüz bildirimin yok',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xEFFFFFFF),
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.30,
+                ),
               ),
-            ),
-            const SizedBox(height: HexaSpacing.lg),
-            Text(
-              'Henüz bildirimin yok',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: HexaSpacing.xs),
-            Text(
-              'Signal, yorum ve takip hareketleri burada görünecek.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: HexaColors.inkMuted),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const Text(
+                'Beğeni, yorum ve takip hareketleri burada görünecek.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0x70FFFFFF),
+                  fontSize: 13,
+                  height: 1.42,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.08,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -148,66 +141,51 @@ class NotificationsErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semanticMessage = message.trim().isEmpty
+        ? 'Bildirimler yüklenemedi'
+        : 'Bildirimler yüklenemedi. $message';
+
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(HexaSpacing.lg),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(HexaSpacing.lg),
-          decoration: BoxDecoration(
-            color: HexaColors.surface,
-            borderRadius: BorderRadius.circular(HexaRadius.lg),
-            border: Border.all(color: HexaColors.border),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 76,
-                height: 76,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFF1F0),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
+        child: Semantics(
+          label: semanticMessage,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
                   Icons.notifications_off_outlined,
-                  size: 35,
-                  color: HexaColors.error,
+                  size: 31,
+                  color: Colors.white.withOpacity(0.32),
                 ),
-              ),
-              const SizedBox(height: HexaSpacing.md),
-              Text(
-                'Bildirimler yüklenemedi',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: HexaSpacing.xs),
-              Text(
-                'Bağlantını kontrol edip biraz sonra yeniden dene.',
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: HexaColors.inkMuted),
-              ),
-              const SizedBox(height: HexaSpacing.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(HexaSpacing.sm),
-                decoration: BoxDecoration(
-                  color: HexaColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(HexaRadius.md),
-                  border: Border.all(color: HexaColors.border),
-                ),
-                child: Text(
-                  message,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 16),
+                const Text(
+                  'Bildirimler yüklenemedi',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: TextStyle(
+                    color: Color(0xEFFFFFFF),
+                    fontSize: 17,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.30,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  'Bağlantını kontrol edip biraz sonra yeniden dene.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0x70FFFFFF),
+                    fontSize: 13,
+                    height: 1.42,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.08,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
